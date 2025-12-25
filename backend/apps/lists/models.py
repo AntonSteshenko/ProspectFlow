@@ -1,13 +1,156 @@
 """
 Models for contact lists and contacts.
 
-Full model implementation will be added in Step 2.
+This module implements the core data models for ProspectFlow:
+- ContactList: Container for imported contact lists with flexible metadata
+- Contact: Individual contact records with JSONB schema
+- ColumnMapping: User-defined mappings from CSV columns to contact fields
 """
+import uuid
 from django.db import models
+from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
 
 
-# Placeholder models
-# Will be fully implemented in Step 2:
-# - ContactList model (with JSONB metadata)
-# - Contact model (with JSONB data field)
-# - ColumnMapping model
+class ContactList(models.Model):
+    """
+    A contact list uploaded and owned by a user.
+
+    Uses JSONB metadata field for extensibility without migrations.
+    Status field tracks processing state (processing, completed, failed).
+    """
+
+    STATUS_CHOICES = [
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, help_text="Name of the contact list")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='contact_lists',
+        help_text="User who owns this contact list"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='processing',
+        db_index=True,
+        help_text="Processing status of the list"
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Flexible JSONB field for future extensions (file info, stats, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'contact_lists'
+        ordering = ['-created_at']
+        verbose_name = 'Contact List'
+        verbose_name_plural = 'Contact Lists'
+        indexes = [
+            models.Index(fields=['owner', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+            GinIndex(fields=['metadata'], name='contactlist_metadata_gin'),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.owner.email})"
+
+
+class Contact(models.Model):
+    """
+    Individual contact within a ContactList.
+
+    Uses JSONB data field to store ALL contact fields dynamically.
+    No schema changes needed when adding new contact fields.
+    Supports soft delete via is_deleted flag.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    list = models.ForeignKey(
+        ContactList,
+        on_delete=models.CASCADE,
+        related_name='contacts',
+        help_text="Contact list this contact belongs to"
+    )
+    data = models.JSONField(
+        default=dict,
+        help_text="All contact fields stored as JSONB (first_name, email, company, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Soft delete flag - deleted contacts remain in DB"
+    )
+
+    class Meta:
+        db_table = 'contacts'
+        ordering = ['-created_at']
+        verbose_name = 'Contact'
+        verbose_name_plural = 'Contacts'
+        indexes = [
+            models.Index(fields=['list', '-created_at']),
+            models.Index(fields=['list', 'is_deleted']),
+            GinIndex(fields=['data'], name='contact_data_gin'),
+        ]
+
+    def __str__(self):
+        # Try to display meaningful info from JSONB data
+        first_name = self.data.get('first_name', '')
+        last_name = self.data.get('last_name', '')
+        email = self.data.get('email', '')
+
+        if first_name or last_name:
+            return f"{first_name} {last_name}".strip()
+        elif email:
+            return email
+        else:
+            return f"Contact {str(self.id)[:8]}"
+
+
+class ColumnMapping(models.Model):
+    """
+    Stores user-defined mappings from original CSV columns to contact fields.
+
+    Example: "Nome Azienda" (original_column) -> "company" (mapped_field)
+    Allows reuse of mappings for similar file formats.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    list = models.ForeignKey(
+        ContactList,
+        on_delete=models.CASCADE,
+        related_name='column_mappings',
+        help_text="Contact list this mapping belongs to"
+    )
+    original_column = models.CharField(
+        max_length=255,
+        help_text="Original column name from CSV/XLSX file"
+    )
+    mapped_field = models.CharField(
+        max_length=255,
+        help_text="Target field name in contact data (e.g., 'company', 'email')"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'column_mappings'
+        ordering = ['created_at']
+        verbose_name = 'Column Mapping'
+        verbose_name_plural = 'Column Mappings'
+        unique_together = [['list', 'original_column']]
+        indexes = [
+            models.Index(fields=['list', 'original_column']),
+        ]
+
+    def __str__(self):
+        return f"{self.original_column} → {self.mapped_field}"
