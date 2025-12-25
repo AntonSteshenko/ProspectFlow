@@ -20,10 +20,9 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # API Endpoints (will be added in future steps)
-    # path('api/auth/', include('apps.users.urls')),
-    # path('api/lists/', include('apps.lists.urls')),
-    # path('api/processing/', include('apps.processing.urls')),
+    # API Endpoints
+    path('api/auth/', include('apps.users.urls')),
+    path('api/', include('apps.lists.urls')),
 ]
 
 # Serve media files in development
