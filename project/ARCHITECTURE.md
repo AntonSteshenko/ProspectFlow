@@ -66,7 +66,7 @@ ProspectFlow is a self-hosted contact list processing application built with a m
 - **Services**: django, postgres, redis, frontend (dev mode)
 - **Networking**: Internal docker network
 - **Volumes**: Postgres data persistence, uploaded files
-- **Command**: `docker-compose up` - single command startup
+- **Command**: `docker compose up` - single command startup
 
 ## Architectural Principles
 
@@ -78,7 +78,7 @@ Following the principles defined in CONCEPT.md:
 | **Flexible Schema** | JSONB for contact data - add fields without migrations |
 | **Isolated Services** | Business logic in `/backend/services/` - testable, replaceable |
 | **Convention over Config** | Predictable structure, consistent naming (Django + React best practices) |
-| **Self-Contained** | `docker-compose up` starts everything - no external dependencies |
+| **Self-Contained** | `docker compose up` starts everything - no external dependencies |
 
 ## Project Structure
 
@@ -108,7 +108,7 @@ prospectflow/
 │       ├── components/      # Shared UI components
 │       ├── App.tsx
 │       └── main.tsx
-├── docker-compose.yml       # Development setup
+├── compose.yml              # Development setup
 ├── CLAUDE.md                # AI development roadmap
 └── project/
     ├── CONCEPT.md           # Vision and principles
@@ -342,7 +342,7 @@ services:
 ### Startup
 
 ```bash
-docker-compose up
+docker compose up
 # Backend: http://localhost:8000
 # Frontend: http://localhost:5173
 # API Docs: http://localhost:8000/api/docs/
@@ -374,7 +374,7 @@ docker-compose up
 - Supports retries, error handling, monitoring
 
 ### Why Docker Compose?
-- Single-command setup (`docker-compose up`)
+- Single-command setup (`docker compose up`)
 - Consistent dev environment across machines
 - Easy to extend for production (add Traefik, backups)
 - Self-contained, no external dependencies

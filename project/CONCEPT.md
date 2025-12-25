@@ -41,7 +41,7 @@ The architecture allows an AI agent to:
 | **Flexible Schema** | JSONB for contact data, no migrations for new fields |
 | **Isolated Services** | Business logic in single, testable, replaceable classes |
 | **Convention over Config** | Predictable structure, consistent naming |
-| **Self-Contained** | `docker-compose up` and it works |
+| **Self-Contained** | `docker compose up` and it works |
 
 ### Target Users
 
