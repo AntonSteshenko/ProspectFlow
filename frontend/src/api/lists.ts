@@ -1,0 +1,94 @@
+/**
+ * Contact Lists API functions
+ */
+import apiClient from './client';
+import type { ContactList, Contact, ColumnMapping } from '../types';
+
+export const listsApi = {
+  /**
+   * Get all contact lists
+   */
+  getLists: async (): Promise<ContactList[]> => {
+    const response = await apiClient.get<ContactList[]>('/lists/');
+    return response.data;
+  },
+
+  /**
+   * Get single contact list with details
+   */
+  getList: async (id: string): Promise<ContactList> => {
+    const response = await apiClient.get<ContactList>(`/lists/${id}/`);
+    return response.data;
+  },
+
+  /**
+   * Create new contact list
+   */
+  createList: async (name: string): Promise<ContactList> => {
+    const response = await apiClient.post<ContactList>('/lists/', { name });
+    return response.data;
+  },
+
+  /**
+   * Update contact list
+   */
+  updateList: async (id: string, data: Partial<ContactList>): Promise<ContactList> => {
+    const response = await apiClient.patch<ContactList>(`/lists/${id}/`, data);
+    return response.data;
+  },
+
+  /**
+   * Delete contact list
+   */
+  deleteList: async (id: string): Promise<void> => {
+    await apiClient.delete(`/lists/${id}/`);
+  },
+
+  /**
+   * Upload file and get preview
+   */
+  uploadFile: async (listId: string, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(`/lists/${listId}/upload/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /**
+   * Process file with column mappings
+   */
+  processFile: async (listId: string, file: File, mappings: Record<string, string>): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('mappings', JSON.stringify(mappings));
+
+    const response = await apiClient.post(`/lists/${listId}/process/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get contacts for a list
+   */
+  getContacts: async (listId: string, search?: string): Promise<Contact[]> => {
+    const params = search ? { search } : {};
+    const response = await apiClient.get<Contact[]>(`/lists/${listId}/contacts/`, { params });
+    return response.data;
+  },
+
+  /**
+   * Get column mappings for a list
+   */
+  getMappings: async (listId: string): Promise<ColumnMapping[]> => {
+    const response = await apiClient.get<ColumnMapping[]>(`/lists/${listId}/mappings/`);
+    return response.data;
+  },
+};
