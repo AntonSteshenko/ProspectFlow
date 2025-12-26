@@ -123,6 +123,78 @@ class Contact(models.Model):
             return f"Contact {str(self.id)[:8]}"
 
 
+class Activity(models.Model):
+    """
+    Activity/comment record for a contact.
+
+    Supports both user comments and system-generated events.
+    Uses JSONB metadata for flexible data storage (e.g., edit history).
+    Soft delete enabled for audit trail.
+    """
+
+    TYPE_CHOICES = [
+        ('user_comment', 'User Comment'),
+        ('system_event', 'System Event'),
+        ('status_change', 'Status Change'),
+        ('field_update', 'Field Update'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        related_name='activities',
+        help_text="Contact this activity belongs to"
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activities',
+        help_text="User who created this activity (null for system events)"
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default='user_comment',
+        db_index=True,
+        help_text="Type of activity"
+    )
+    content = models.TextField(help_text="Activity content or comment text")
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Flexible JSONB field (edit history, event data, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Soft delete flag"
+    )
+    is_edited = models.BooleanField(
+        default=False,
+        help_text="True if this comment has been edited"
+    )
+
+    class Meta:
+        db_table = 'activities'
+        ordering = ['-created_at']
+        verbose_name = 'Activity'
+        verbose_name_plural = 'Activities'
+        indexes = [
+            models.Index(fields=['contact', '-created_at']),
+            models.Index(fields=['contact', 'type', '-created_at']),
+            GinIndex(fields=['metadata'], name='activity_metadata_gin'),
+        ]
+
+    def __str__(self):
+        author_name = self.author.email if self.author else 'System'
+        return f"{self.get_type_display()} by {author_name} on {self.contact}"
+
+
 class ColumnMapping(models.Model):
     """
     Stores user-defined mappings from original CSV columns to contact fields.

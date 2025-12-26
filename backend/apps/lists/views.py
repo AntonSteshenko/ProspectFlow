@@ -1,5 +1,5 @@
 """
-Views for contact lists, contacts, and column mappings.
+Views for contact lists, contacts, column mappings, and activities.
 
 Provides REST API endpoints for managing contact data.
 """
@@ -7,23 +7,28 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.shortcuts import get_object_or_404
 from django.db.models import F, OrderBy
 from django.db.models.expressions import RawSQL
 
-from .models import ContactList, Contact
+from .models import ContactList, Contact, Activity
 from .serializers import (
     ContactListSerializer,
     ContactListDetailSerializer,
     ContactListCreateSerializer,
     ContactSerializer,
-    FileUploadSerializer
+    FileUploadSerializer,
+    ActivitySerializer,
+    ActivityCreateSerializer,
+    ActivityUpdateSerializer
 )
-from .permissions import IsOwner, IsContactListOwner
+from .permissions import IsOwner, IsContactListOwner, IsActivityOwnerOrReadOnly
 from services.upload_service import UploadService
 from services.parser_service import ParserService
 from services.contact_service import ContactService
+from services.activity_service import ActivityService
 
 
 @extend_schema_view(
@@ -408,4 +413,115 @@ class ContactViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         """Soft delete instead of hard delete."""
         ContactService.soft_delete_contact(instance)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List activities for a contact",
+        description="Get all activities/comments for a contact. Only activities from contacts owned by the current user are returned.",
+        tags=["Activities"]
+    ),
+    create=extend_schema(
+        summary="Create a comment",
+        description="Add a new comment to a contact. Author is automatically set to the current user.",
+        tags=["Activities"]
+    ),
+    retrieve=extend_schema(
+        summary="Get activity details",
+        description="Get detailed information about a specific activity/comment.",
+        tags=["Activities"]
+    ),
+    update=extend_schema(
+        summary="Update comment",
+        description="Update a comment. Only the author can edit their own comments. Edit history is tracked in metadata.",
+        tags=["Activities"]
+    ),
+    partial_update=extend_schema(
+        summary="Partially update comment",
+        description="Partially update a comment. Only the author can edit their own comments.",
+        tags=["Activities"]
+    ),
+    destroy=extend_schema(
+        summary="Delete comment",
+        description="Soft delete a comment. Only the author can delete their own comments.",
+        tags=["Activities"]
+    ),
+)
+class ActivityViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Activity CRUD operations.
+
+    Supports nested routes: /contacts/{contact_pk}/activities/
+    Only returns activities from contacts owned by the current user.
+    """
+    permission_classes = [IsAuthenticated, IsActivityOwnerOrReadOnly]
+    pagination_class = None  # Disable pagination - return all activities for a contact
+
+    def get_queryset(self):
+        """
+        Return activities owned by the current user.
+
+        If nested route (contact_pk), filter by that contact.
+        Otherwise, return all activities from user's contacts.
+        """
+        contact_id = self.kwargs.get('contact_pk')
+        if contact_id:
+            contact = get_object_or_404(Contact, id=contact_id, list__owner=self.request.user)
+            return ActivityService.get_contact_activities(contact, include_deleted=False)
+
+        # Non-nested route: all activities from user's contacts
+        return Activity.objects.filter(
+            contact__list__owner=self.request.user,
+            is_deleted=False
+        ).select_related('contact', 'author').order_by('-created_at')
+
+    def get_serializer_class(self):
+        """Use different serializers for different actions."""
+        if self.action == 'create':
+            return ActivityCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return ActivityUpdateSerializer
+        return ActivitySerializer
+
+    def perform_create(self, serializer):
+        """
+        Create activity with permission check.
+
+        Ensures user owns the contact before allowing comment creation.
+        """
+        contact = serializer.validated_data['contact']
+        if contact.list.owner != self.request.user:
+            raise PermissionDenied("You don't own this contact")
+
+        ActivityService.create_user_comment(
+            contact=contact,
+            user=self.request.user,
+            content=serializer.validated_data['content']
+        )
+
+    def perform_update(self, serializer):
+        """
+        Update activity with permission check.
+
+        Uses ActivityService to handle edit history and permissions.
+        """
+        try:
+            ActivityService.update_user_comment(
+                activity=self.get_object(),
+                content=serializer.validated_data['content'],
+                user=self.request.user
+            )
+        except (PermissionError, ValueError) as e:
+            raise PermissionDenied(str(e))
+
+    def perform_destroy(self, instance):
+        """
+        Soft delete activity.
+
+        Uses ActivityService to handle soft delete with permissions.
+        """
+        try:
+            ActivityService.delete_user_comment(activity=instance, user=self.request.user)
+        except (PermissionError, ValueError) as e:
+            raise PermissionDenied(str(e))
 

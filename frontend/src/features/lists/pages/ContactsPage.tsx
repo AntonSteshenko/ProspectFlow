@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, ArrowLeft, Settings } from 'lucide-react';
+import { Search, ArrowLeft, Settings, MessageSquare } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -269,11 +269,23 @@ export function ContactsPage() {
               const rightFields = fieldsToDisplay.slice(midPoint);
 
               return (
-                <Card key={contact.id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={contact.id}
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/contacts/${contact.id}`)}
+                >
                   {/* Title at the top */}
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    {String(contact.data?.[titleFieldKey] || 'Contact')}
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {String(contact.data?.[titleFieldKey] || 'Contact')}
+                    </h3>
+                    {contact.activities_count > 0 && (
+                      <div className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        <MessageSquare className="w-4 h-4" />
+                        <span>{contact.activities_count}</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Two columns for other fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

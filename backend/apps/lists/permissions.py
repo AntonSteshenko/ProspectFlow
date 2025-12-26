@@ -50,3 +50,60 @@ class IsContactListOwner(permissions.BasePermission):
             bool: True if obj.list.owner == request.user
         """
         return obj.list.owner == request.user
+
+
+class IsActivityOwnerOrReadOnly(permissions.BasePermission):
+    """
+    Permission for Activity objects.
+
+    - Read: User must own the parent ContactList
+    - Create: Allowed if user owns ContactList
+    - Update/Delete: Only author of user_comment
+    """
+
+    def has_permission(self, request, view):
+        """
+        Check if user has permission to access activities.
+
+        Args:
+            request: The HTTP request
+            view: The view being accessed
+
+        Returns:
+            bool: True if user owns the parent ContactList
+        """
+        contact_id = view.kwargs.get('contact_pk')
+        if contact_id:
+            try:
+                from .models import Contact
+                contact = Contact.objects.select_related('list').get(id=contact_id)
+                return contact.list.owner == request.user
+            except Contact.DoesNotExist:
+                return False
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        """
+        Check if user has permission for specific activity.
+
+        Args:
+            request: The HTTP request
+            view: The view being accessed
+            obj: The Activity object being accessed
+
+        Returns:
+            bool: True if user has permission
+        """
+        # User must own parent ContactList
+        if obj.contact.list.owner != request.user:
+            return False
+
+        # Read access for owner
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Write access: only author of user_comment
+        if request.method in ['PUT', 'PATCH', 'DELETE']:
+            return (obj.type == 'user_comment' and obj.author == request.user and not obj.is_deleted)
+
+        return False

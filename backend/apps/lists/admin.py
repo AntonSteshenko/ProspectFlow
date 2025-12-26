@@ -1,12 +1,12 @@
 """
 Admin configuration for lists app.
 
-Provides admin interfaces for ContactList, Contact, and ColumnMapping models
+Provides admin interfaces for ContactList, Contact, ColumnMapping, and Activity models
 with appropriate list displays, filters, and search capabilities.
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ContactList, Contact, ColumnMapping
+from .models import ContactList, Contact, ColumnMapping, Activity
 
 
 @admin.register(ContactList)
@@ -135,3 +135,60 @@ class ColumnMappingAdmin(admin.ModelAdmin):
         """Optimize queries with select_related."""
         qs = super().get_queryset(request)
         return qs.select_related('list', 'list__owner')
+
+
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    """Admin interface for Activity model."""
+
+    list_display = ['activity_info', 'contact_info', 'author_info', 'type', 'is_edited', 'is_deleted', 'created_at']
+    list_filter = ['type', 'is_deleted', 'is_edited', 'created_at', 'updated_at']
+    search_fields = ['content', 'contact__data', 'author__email']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'is_edited']
+    ordering = ['-created_at']
+
+    fieldsets = [
+        ('Basic Information', {
+            'fields': ['id', 'contact', 'author', 'type']
+        }),
+        ('Content', {
+            'fields': ['content'],
+        }),
+        ('Metadata (JSONB)', {
+            'fields': ['metadata'],
+            'classes': ['collapse'],
+            'description': 'Stores edit history and other flexible data.',
+        }),
+        ('Status', {
+            'fields': ['is_deleted', 'is_edited'],
+        }),
+        ('Timestamps', {
+            'fields': ['created_at', 'updated_at'],
+            'classes': ['collapse'],
+        }),
+    ]
+
+    def activity_info(self, obj):
+        """Display activity content preview."""
+        preview = obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
+        return format_html('<span title="{}">{}</span>', obj.content, preview)
+    activity_info.short_description = 'Content'
+
+    def contact_info(self, obj):
+        """Display contact name."""
+        return str(obj.contact)
+    contact_info.short_description = 'Contact'
+    contact_info.admin_order_field = 'contact'
+
+    def author_info(self, obj):
+        """Display author email or 'System'."""
+        if obj.author:
+            return obj.author.email
+        return format_html('<em>System</em>')
+    author_info.short_description = 'Author'
+    author_info.admin_order_field = 'author__email'
+
+    def get_queryset(self, request):
+        """Optimize queries with select_related."""
+        qs = super().get_queryset(request)
+        return qs.select_related('contact', 'contact__list', 'author')

@@ -2,7 +2,7 @@
  * Contact Lists API functions
  */
 import apiClient from './client';
-import type { ContactList, ColumnMapping, PaginatedResponse } from '../types';
+import type { ContactList, ColumnMapping, PaginatedResponse, Activity, ActivityCreate, ActivityUpdate } from '../types';
 
 export const listsApi = {
   /**
@@ -110,5 +110,39 @@ export const listsApi = {
   processImport: async (listId: string): Promise<any> => {
     const response = await apiClient.post(`/lists/${listId}/import/`);
     return response.data;
+  },
+
+  /**
+   * Get activities for a contact
+   */
+  getActivities: async (contactId: string): Promise<Activity[]> => {
+    const response = await apiClient.get<Activity[]>(`/contacts/${contactId}/activities/`);
+    return response.data;
+  },
+
+  /**
+   * Create a new comment
+   */
+  createActivity: async (data: ActivityCreate): Promise<Activity> => {
+    const response = await apiClient.post<Activity>(`/contacts/${data.contact}/activities/`, data);
+    return response.data;
+  },
+
+  /**
+   * Update a comment
+   */
+  updateActivity: async (contactId: string, activityId: string, data: ActivityUpdate): Promise<Activity> => {
+    const response = await apiClient.patch<Activity>(
+      `/contacts/${contactId}/activities/${activityId}/`,
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete a comment
+   */
+  deleteActivity: async (contactId: string, activityId: string): Promise<void> => {
+    await apiClient.delete(`/contacts/${contactId}/activities/${activityId}/`);
   },
 };

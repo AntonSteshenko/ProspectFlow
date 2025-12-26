@@ -1,10 +1,10 @@
 """
-Serializers for contact lists, contacts.
+Serializers for contact lists, contacts, and activities.
 
 Handles validation and serialization of JSONB data.
 """
 from rest_framework import serializers
-from .models import ContactList, Contact
+from .models import ContactList, Contact, Activity
 
 
 
@@ -16,10 +16,16 @@ class ContactSerializer(serializers.ModelSerializer):
     No schema changes needed when adding new contact fields.
     """
 
+    activities_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Contact
-        fields = ['id', 'list', 'data', 'created_at', 'updated_at', 'is_deleted']
+        fields = ['id', 'list', 'data', 'created_at', 'updated_at', 'is_deleted', 'activities_count']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_activities_count(self, obj):
+        """Return count of non-deleted activities for this contact."""
+        return obj.activities.filter(is_deleted=False).count()
 
     def validate_data(self, value):
         """
@@ -156,3 +162,91 @@ class FileUploadSerializer(serializers.Serializer):
             )
 
         return value
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    """
+    Serializer for Activity with author info and permissions.
+
+    Includes computed fields for author display and permission checks.
+    """
+
+    author_email = serializers.EmailField(source='author.email', read_only=True)
+    author_name = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id', 'contact', 'author', 'author_email', 'author_name',
+            'type', 'content', 'metadata', 'is_edited', 'is_deleted',
+            'created_at', 'updated_at', 'can_edit', 'can_delete'
+        ]
+        read_only_fields = [
+            'id', 'author', 'created_at', 'updated_at',
+            'is_edited', 'is_deleted'
+        ]
+
+    def get_author_name(self, obj):
+        """
+        Get display name for author.
+
+        Returns full name if available, otherwise email username, or 'System' for null authors.
+        """
+        if not obj.author:
+            return 'System'
+        if obj.author.first_name or obj.author.last_name:
+            return f"{obj.author.first_name} {obj.author.last_name}".strip()
+        return obj.author.email.split('@')[0]
+
+    def get_can_edit(self, obj):
+        """Check if current user can edit this activity."""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return False
+        return (obj.type == 'user_comment' and obj.author == request.user and not obj.is_deleted)
+
+    def get_can_delete(self, obj):
+        """Check if current user can delete this activity."""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return False
+        return (obj.type == 'user_comment' and obj.author == request.user and not obj.is_deleted)
+
+
+class ActivityCreateSerializer(serializers.ModelSerializer):
+    """
+    Create activities - automatically sets author to current user.
+
+    Only requires contact and content fields.
+    """
+
+    class Meta:
+        model = Activity
+        fields = ['contact', 'content']
+
+    def create(self, validated_data):
+        """Create activity with current user as author."""
+        validated_data['author'] = self.context['request'].user
+        validated_data['type'] = 'user_comment'
+        return super().create(validated_data)
+
+
+class ActivityUpdateSerializer(serializers.ModelSerializer):
+    """
+    Update activities - only content, sets is_edited flag.
+
+    Only allows updating the content field.
+    """
+
+    class Meta:
+        model = Activity
+        fields = ['content']
+
+    def update(self, instance, validated_data):
+        """Update activity content and mark as edited."""
+        instance.content = validated_data.get('content', instance.content)
+        instance.is_edited = True
+        instance.save()
+        return instance

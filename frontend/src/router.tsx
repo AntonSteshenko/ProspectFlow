@@ -5,6 +5,7 @@ import { DashboardPage } from './features/lists/pages/DashboardPage';
 import { UploadPage } from './features/lists/pages/UploadPage';
 import { ContactsPage } from './features/lists/pages/ContactsPage';
 import { ListSettingsPage } from './features/lists/pages/ListSettingsPage';
+import { ContactDetailPage } from './features/contacts/pages/ContactDetailPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -44,6 +45,10 @@ export const router = createBrowserRouter([
       {
         path: 'lists/:listId/settings',
         element: <ListSettingsPage />,
+      },
+      {
+        path: 'contacts/:contactId',
+        element: <ContactDetailPage />,
       },
     ],
   },

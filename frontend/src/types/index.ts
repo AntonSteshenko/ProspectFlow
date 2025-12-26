@@ -40,6 +40,7 @@ export interface Contact {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  activities_count: number;
 }
 
 export interface ColumnMapping {
@@ -65,4 +66,30 @@ export interface RegisterData {
 export interface TokenResponse {
   access: string;
   refresh: string;
+}
+
+export interface Activity {
+  id: string;
+  contact: string;
+  author: string | null;
+  author_email?: string;
+  author_name: string;
+  type: 'user_comment' | 'system_event' | 'status_change' | 'field_update';
+  content: string;
+  metadata: Record<string, any>;
+  is_edited: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+
+export interface ActivityCreate {
+  contact: string;
+  content: string;
+}
+
+export interface ActivityUpdate {
+  content: string;
 }
