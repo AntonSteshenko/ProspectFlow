@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.shortcuts import get_object_or_404
+from django.db.models import F, OrderBy
+from django.db.models.expressions import RawSQL
 
 from .models import ContactList, Contact, ColumnMapping
 from .serializers import (
@@ -295,9 +297,10 @@ class ContactListViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(
         summary="List contacts",
-        description="Get all contacts in a contact list with optional search.",
+        description="Get all contacts in a contact list with optional search and ordering.",
         parameters=[
             OpenApiParameter('search', str, description='Search query'),
+            OpenApiParameter('ordering', str, description='Field to order by. Prefix with - for descending (e.g., -company, first_name)'),
         ],
         tags=["Contacts"]
     ),
@@ -336,7 +339,7 @@ class ContactViewSet(viewsets.ModelViewSet):
         """
         Return contacts owned by the current user.
 
-        Supports search query parameter.
+        Supports search and ordering query parameters.
         """
         # Get contact list ID from URL if nested route
         list_id = self.kwargs.get('list_pk')
@@ -362,7 +365,44 @@ class ContactViewSet(viewsets.ModelViewSet):
             contact_list = ContactList.objects.get(id=list_id)
             queryset = ContactService.search_contacts(contact_list, search)
 
-        return queryset.order_by('-created_at')
+        # Apply ordering if provided
+        ordering = self.request.query_params.get('ordering')
+        if ordering:
+            # Handle JSONB field ordering
+            # Format: "field_name" for ASC or "-field_name" for DESC
+            if ordering.startswith('-'):
+                field_name = ordering[1:]
+                descending = True
+            else:
+                field_name = ordering
+                descending = False
+
+            # Use CASE expression to detect numeric values and cast them
+            # This allows proper numeric sorting (2 < 10) instead of string sorting ("10" < "2")
+            # Regex pattern: optional minus, digits, optional decimal point and more digits
+            numeric_sort = RawSQL(
+                """
+                CASE
+                    WHEN data->>%s ~ '^-?[0-9]+\.?[0-9]*$'
+                    THEN (data->>%s)::NUMERIC
+                END
+                """,
+                (field_name, field_name)
+            )
+
+            # Fallback to string sorting for non-numeric values
+            string_sort = RawSQL("data->>%s", (field_name,))
+
+            # Order by numeric values first, then string values, with NULLs last
+            queryset = queryset.order_by(
+                OrderBy(numeric_sort, descending=descending, nulls_last=True),
+                OrderBy(string_sort, descending=descending, nulls_last=True)
+            )
+        else:
+            # Default ordering by creation date
+            queryset = queryset.order_by('-created_at')
+
+        return queryset
 
     def perform_destroy(self, instance):
         """Soft delete instead of hard delete."""

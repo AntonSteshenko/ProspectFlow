@@ -75,10 +75,11 @@ export const listsApi = {
   /**
    * Get contacts for a list
    */
-  getContacts: async (listId: string, search?: string, page?: number): Promise<any> => {
+  getContacts: async (listId: string, search?: string, page?: number, ordering?: string): Promise<any> => {
     const params: any = {};
     if (search) params.search = search;
     if (page) params.page = page;
+    if (ordering) params.ordering = ordering;
     const response = await apiClient.get(`/lists/${listId}/contacts/`, { params });
     return response.data;
   },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ArrowLeft, Settings } from 'lucide-react';
@@ -14,6 +14,8 @@ export function ContactsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Get list details
   const { data: list } = useQuery({
@@ -22,15 +24,33 @@ export function ContactsPage() {
     enabled: !!listId,
   });
 
-  // Get contacts with search and pagination
+  // Get contacts with search, pagination, and ordering
   const { data: contactsResponse, isLoading } = useQuery({
-    queryKey: ['contacts', listId, debouncedSearch, currentPage],
-    queryFn: () => listsApi.getContacts(listId!, debouncedSearch || undefined, currentPage),
+    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection],
+    queryFn: () => {
+      const ordering = sortField
+        ? (sortDirection === 'desc' ? `-${sortField}` : sortField)
+        : undefined;
+      return listsApi.getContacts(listId!, debouncedSearch || undefined, currentPage, ordering);
+    },
     enabled: !!listId,
   });
 
   // Extract contacts array from paginated response
   const contacts = Array.isArray(contactsResponse) ? contactsResponse : (contactsResponse?.results || []);
+
+  // Get available fields for sorting dropdown - only "Always show" fields
+  const availableFields = useMemo(() => {
+    if (list?.metadata?.display_settings) {
+      return Object.keys(list.metadata.display_settings).filter(
+        (key) => list.metadata.display_settings[key] === 'show'
+      );
+    }
+    if (contacts.length > 0) {
+      return Object.keys(contacts[0].data || {}).filter(key => !/^\d{4}$/.test(key));
+    }
+    return [];
+  }, [list, contacts]);
 
   // Debounce search and reset page
   const handleSearchChange = (value: string) => {
@@ -40,26 +60,6 @@ export function ContactsPage() {
       setDebouncedSearch(value);
     }, 500);
     return () => clearTimeout(timeout);
-  };
-
-  // Extract common fields from JSONB data
-  const getContactField = (contact: any, field: string) => {
-    return contact.data?.[field] || '-';
-  };
-
-  // Get the first non-empty value from contact data for display name
-  const getContactName = (contact: any) => {
-    const data = contact.data || {};
-    const values = Object.values(data);
-
-    // Return first non-empty string value
-    for (const value of values) {
-      if (value && typeof value === 'string' && value.trim() !== '') {
-        return value;
-      }
-    }
-
-    return 'Contact';
   };
 
   return (
@@ -80,11 +80,6 @@ export function ContactsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
             <p className="text-gray-600 mt-2">
               List: <span className="font-semibold">{list?.name}</span>
-              {contacts && (
-                <span className="ml-4 text-sm">
-                  ({contacts.length} contact{contacts.length !== 1 ? 's' : ''})
-                </span>
-              )}
             </p>
           </div>
           <Button
@@ -92,7 +87,6 @@ export function ContactsPage() {
             variant="secondary"
           >
             <Settings className="w-4 h-4 mr-2" />
-            Display Settings
           </Button>
         </div>
       </div>
@@ -111,10 +105,49 @@ export function ContactsPage() {
         </div>
       </div>
 
+      {/* Sort Controls */}
+      {availableFields.length > 0 && (
+        <div className="mb-6 flex gap-3 items-center">
+          <span className="text-sm font-medium text-gray-700">Sort by:</span>
+
+          {/* Field Selector */}
+          <select
+            value={sortField}
+            onChange={(e) => {
+              setSortField(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          >
+            <option value="">Default (newest first)</option>
+            {availableFields.map((field) => (
+              <option key={field} value={field}>
+                {field}
+              </option>
+            ))}
+          </select>
+
+          {/* Order Selector - only show when field selected */}
+          {sortField && (
+            <select
+              value={sortDirection}
+              onChange={(e) => {
+                setSortDirection(e.target.value as 'asc' | 'desc');
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="asc">A → Z</option>
+              <option value="desc">Z → A</option>
+            </select>
+          )}
+        </div>
+      )}
+
       {/* Loading state */}
       {isLoading && (
         <div className="flex justify-center items-center py-12">
-          <Spinner size="lg" />
+          <Spinner />
         </div>
       )}
 
@@ -183,8 +216,8 @@ export function ContactsPage() {
                     {/* Left column */}
                     <div className="space-y-2 text-sm">
                       {leftFields.map(([key, value]) => (
-                        <div key={key} className="flex items-start">
-                          <span className="text-gray-500 min-w-[140px] text-xs">{key}:</span>
+                        <div key={key} className="flex items-center">
+                          <span className="text-gray-500 min-w-[140px]">{key}:</span>
                           <span className="text-gray-700 font-medium">{String(value)}</span>
                         </div>
                       ))}
@@ -193,8 +226,8 @@ export function ContactsPage() {
                     {/* Right column */}
                     <div className="space-y-2 text-sm">
                       {rightFields.map(([key, value]) => (
-                        <div key={key} className="flex items-start">
-                          <span className="text-gray-500 min-w-[140px] text-xs">{key}:</span>
+                        <div key={key} className="flex items-center">
+                          <span className="text-gray-500 min-w-[140px]">{key}:</span>
                           <span className="text-gray-700">{String(value)}</span>
                         </div>
                       ))}
