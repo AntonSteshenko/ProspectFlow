@@ -3,7 +3,6 @@ import { LoginPage } from './features/auth/pages/LoginPage';
 import { RegisterPage } from './features/auth/pages/RegisterPage';
 import { DashboardPage } from './features/lists/pages/DashboardPage';
 import { UploadPage } from './features/lists/pages/UploadPage';
-import { MappingPage } from './features/lists/pages/MappingPage';
 import { ContactsPage } from './features/lists/pages/ContactsPage';
 import { ListSettingsPage } from './features/lists/pages/ListSettingsPage';
 import { AppLayout } from './components/layout/AppLayout';
@@ -37,10 +36,6 @@ export const router = createBrowserRouter([
       {
         path: 'lists/:listId/upload',
         element: <UploadPage />,
-      },
-      {
-        path: 'lists/:listId/mapping',
-        element: <MappingPage />,
       },
       {
         path: 'lists/:listId/contacts',

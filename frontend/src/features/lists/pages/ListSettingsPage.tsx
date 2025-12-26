@@ -31,8 +31,8 @@ export function ListSettingsPage() {
   const contacts = Array.isArray(contactsResponse) ? contactsResponse : (contactsResponse?.results || []);
 
   // Get all unique column names
-  const allColumns = Array.from(
-    new Set(
+  const allColumns: string[] = Array.from(
+    new Set<string>(
       contacts.flatMap((contact: any) => Object.keys(contact.data || {}))
     )
   ).filter((key) => !/^\d{4}$/.test(key)); // Skip year fields
@@ -95,7 +95,7 @@ export function ListSettingsPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Spinner size="lg" />
+        <Spinner />
       </div>
     );
   }
@@ -108,10 +108,10 @@ export function ListSettingsPage() {
           onClick={() => navigate(`/lists/${listId}/contacts`)}
           variant="secondary"
           size="sm"
-          className="mb-4"
+          className="mb-4 flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Contacts
+          <span>Back to Contacts</span>
         </Button>
         <h1 className="text-3xl font-bold text-gray-900">List Settings</h1>
         <p className="text-gray-600 mt-2">
@@ -167,31 +167,28 @@ export function ListSettingsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleDisplayChange(column, 'show')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                        displaySettings[column] === 'show'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
-                      }`}
+                      className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${displaySettings[column] === 'show'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                        }`}
                     >
                       Always Show
                     </button>
                     <button
                       onClick={() => handleDisplayChange(column, 'show_if_not_null')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                        displaySettings[column] === 'show_if_not_null'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
-                      }`}
+                      className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${displaySettings[column] === 'show_if_not_null'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                        }`}
                     >
                       Show if not empty
                     </button>
                     <button
                       onClick={() => handleDisplayChange(column, 'hide')}
-                      className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                        displaySettings[column] === 'hide'
-                          ? 'bg-red-600 text-white'
-                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
-                      }`}
+                      className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${displaySettings[column] === 'hide'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+                        }`}
                     >
                       Hide
                     </button>
@@ -206,17 +203,17 @@ export function ListSettingsPage() {
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || allColumns.length === 0}
-              className="flex-1"
+              className="flex items-center gap-2"
             >
               {saveMutation.isPending ? (
                 <>
-                  <Spinner size="sm" className="mr-2" />
+                  <Spinner />
                   Saving...
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4 mr-2" />
-                  Save Settings
+                  <span>Save Settings</span>
                 </>
               )}
             </Button>

@@ -72,10 +72,10 @@ export function ContactsPage() {
               onClick={() => navigate('/dashboard')}
               variant="secondary"
               size="sm"
-              className="mb-4"
+              className="mb-4 flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              <span>Back to Dashboard</span>
             </Button>
             <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
             <p className="text-gray-600 mt-2">
@@ -168,6 +168,34 @@ export function ContactsPage() {
       {/* Contacts grid */}
       {!isLoading && contacts && contacts.length > 0 && (
         <>
+          {/* Pagination controls */}
+          {contactsResponse && (
+            <div className="flex justify-center items-center gap-4 m-8">
+              <Button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={!contactsResponse.previous}
+                variant="secondary"
+                size="sm"
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage}
+                {contactsResponse.count && (
+                  <> of {Math.ceil(contactsResponse.count / 50)}</>
+                )}
+              </span>
+              <Button
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={!contactsResponse.next}
+                variant="secondary"
+                size="sm"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+
           <div className="space-y-4">
             {contacts.map((contact: any) => {
               const displaySettings = list?.metadata?.display_settings || {};

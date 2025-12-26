@@ -68,7 +68,7 @@ export function UploadPage() {
   if (isLoadingList) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Spinner size="lg" />
+        <Spinner />
       </div>
     );
   }
@@ -88,11 +88,10 @@ export function UploadPage() {
           {!previewData && (
             <div
               {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                isDragActive
+              className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragActive
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 hover:border-gray-400'
-              }`}
+                }`}
             >
               <input {...getInputProps()} />
               <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
@@ -114,7 +113,7 @@ export function UploadPage() {
           {/* Upload progress */}
           {uploadMutation.isPending && (
             <div className="flex items-center justify-center py-12">
-              <Spinner size="lg" />
+              <Spinner />
               <span className="ml-3 text-gray-600">Processing file...</span>
             </div>
           )}

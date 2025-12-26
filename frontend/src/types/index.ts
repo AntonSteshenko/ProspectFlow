@@ -2,6 +2,16 @@
  * Global TypeScript types and interfaces
  */
 
+/**
+ * Django REST Framework paginated response
+ */
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export interface User {
   id: string;
   email: string;

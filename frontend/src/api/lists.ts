@@ -2,14 +2,14 @@
  * Contact Lists API functions
  */
 import apiClient from './client';
-import type { ContactList, Contact, ColumnMapping } from '../types';
+import type { ContactList, ColumnMapping, PaginatedResponse } from '../types';
 
 export const listsApi = {
   /**
    * Get all contact lists
    */
-  getLists: async (): Promise<ContactList[]> => {
-    const response = await apiClient.get<ContactList[]>('/lists/');
+  getLists: async (): Promise<PaginatedResponse<ContactList>> => {
+    const response = await apiClient.get<PaginatedResponse<ContactList>>('/lists/');
     return response.data;
   },
 

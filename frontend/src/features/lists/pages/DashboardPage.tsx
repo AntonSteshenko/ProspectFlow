@@ -33,8 +33,8 @@ export const DashboardPage = () => {
     );
   }
 
-  // Handle both array and paginated response
-  const lists = Array.isArray(response) ? response : (response?.results || []);
+  // Extract results from paginated response
+  const lists = response?.results || [];
 
   return (
     <div>
@@ -71,18 +71,18 @@ export const DashboardPage = () => {
                   onClick={() => navigate(`/lists/${list.id}/upload`)}
                   size="sm"
                   variant="secondary"
-                  className="flex-1"
+                  className="flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4 mr-1" />
-                  Upload
+                  <span>Upload</span>
                 </Button>
                 <Button
                   onClick={() => navigate(`/lists/${list.id}/contacts`)}
                   size="sm"
-                  className="flex-1"
+                  className="flex items-center gap-2"
                 >
                   <Eye className="w-4 h-4 mr-1" />
-                  View
+                  <span>View</span>
                 </Button>
               </div>
             </Card>
