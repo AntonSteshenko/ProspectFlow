@@ -17,7 +17,7 @@
 
 ## PROJECT STATUS
 
-**Phase**: MVP Implementation - Step 4 Complete
+**Phase**: MVP Complete - Enhanced Features Added
 **Last Updated**: 2025-12-26
 
 ### Completed
@@ -73,25 +73,40 @@
   - ✅ Frontend added to docker-compose.yml
   - ✅ Path aliases (@/) configured
 
-### Current Step
-**Step 5: Final Integration & Testing** (Next)
-- Test full workflow end-to-end
-- Fix any integration issues
-- Update documentation
+- ✅ **Step 5: Enhanced Features Complete**
+  - ✅ Flexible contact sorting with smart type detection
+    - ✅ Sort by any "Always show" field (A-Z / Z-A)
+    - ✅ Automatic numeric vs string detection (2 < 10 vs "10" < "2")
+    - ✅ PostgreSQL JSONB field access with RawSQL and OrderBy
+    - ✅ NULL values sorted last
+  - ✅ Field-specific search with dropdown selector
+    - ✅ Select field from "Always show" columns
+    - ✅ Case-insensitive search with PostgreSQL ILIKE
+    - ✅ Supports text, numbers, and symbols
+    - ✅ Input disabled until field selected
+    - ✅ Shows all contacts when no field selected
+  - ✅ UI improvements and TypeScript fixes
+  - ✅ Cleanup: Removed unused ColumnMapping references
 
-### Next Steps (MVP Implementation)
+### Current Phase
+**MVP Complete - Ready for Production Testing**
+- All core features implemented
+- Next: Add additional features or prepare for deployment
+
+### Completed Steps
 1. ~~**Setup Django Backend**~~ ✅ COMPLETE
 2. ~~**Implement Core Models**~~ ✅ COMPLETE
 3. ~~**Build API Endpoints**~~ ✅ COMPLETE
 4. ~~**Create React Frontend**~~ ✅ COMPLETE
+5. ~~**Enhanced Features**~~ ✅ COMPLETE
+   - ~~Flexible sorting with numeric support~~ ✅
+   - ~~Field-specific search~~ ✅
+   - ~~Smart type detection~~ ✅
 
-5. **Final Integration & Testing**
-   - Test registration and login flow
-   - Test ContactList creation
-   - Test file upload and column mapping
-   - Test contact import and search
-   - Fix any bugs discovered during testing
-   - Update documentation with setup instructions
+### Next Phase Options
+- **Production Deployment**: Prepare for production environment
+- **Additional Features**: Add new functionality (data enrichment, integrations, etc.)
+- **Testing & Refinement**: End-to-end testing and bug fixes
 
 ## QUICK REFERENCE
 
@@ -101,7 +116,7 @@
 
 **Architecture Pattern**: Service layer for business logic (`backend/services/`)
 
-**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Search/filter/paginate
+**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Field-specific search → Flexible sorting → Paginate
 
 **Out of Scope (Phase 2+)**: Traefik, CI/CD, Ansible, data enrichment, integrations
 

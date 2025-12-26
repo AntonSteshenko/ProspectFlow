@@ -176,7 +176,13 @@ When running `docker compose up`, the following services start:
 - [x] Simplified import: all CSV columns → JSONB
 - [x] User-selectable title field + column visibility options
 
-### Step 5: Final Integration & Testing (Current)
+### Step 5: Enhanced Features ✅ COMPLETE
+- [x] Flexible contact sorting with numeric field support
+- [x] Field-specific search with dropdown selector
+- [x] Smart type detection for sorting (numeric vs string)
+- [x] UI improvements and TypeScript fixes
+
+### Step 6: Final Integration & Testing (Current)
 - [ ] End-to-end workflow testing
 - [ ] Bug fixes and refinements
 - [ ] Production deployment preparation
@@ -239,7 +245,12 @@ Following the principles defined in `project/CONCEPT.md`:
 - All columns stored in flexible JSONB format
 
 **Contact Display & Management**
-- Search contacts across all fields
+- Field-specific search with dropdown selector
+  - Select field from "Always show" columns
+  - Case-insensitive search supporting text, numbers, and symbols
+- Flexible sorting with smart type detection
+  - Sort by any "Always show" field (ascending/descending)
+  - Automatic numeric vs string detection for correct ordering
 - Pagination (50 contacts per page)
 - Configurable display settings per list
 - Choose title field for contact cards
@@ -247,7 +258,8 @@ Following the principles defined in `project/CONCEPT.md`:
 - Two-column responsive layout
 
 **Technical Features**
-- Full-text search on JSONB contact data
+- PostgreSQL JSONB field-specific queries with ILIKE
+- Smart numeric vs string sorting (2 < 10 instead of "10" < "2")
 - GIN indexes for fast JSONB queries
 - Soft delete for contacts
 - Object-level permissions (owner-only access)
@@ -260,7 +272,8 @@ Following the principles defined in `project/CONCEPT.md`:
 3. **Upload File** → Drop CSV/XLSX, see preview
 4. **Auto-Import** → All columns saved to JSONB automatically
 5. **Configure Display** → Choose title field and column visibility
-6. **Browse & Search** → View, search, and paginate through contacts
+6. **Search & Sort** → Select field to search, sort by any column with smart type detection
+7. **Browse** → View and paginate through contacts (50 per page)
 
 ## Troubleshooting
 
