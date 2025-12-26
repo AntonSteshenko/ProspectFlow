@@ -16,6 +16,7 @@ export function ContactsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [searchField, setSearchField] = useState<string>('');
 
   // Get list details
   const { data: list } = useQuery({
@@ -26,12 +27,18 @@ export function ContactsPage() {
 
   // Get contacts with search, pagination, and ordering
   const { data: contactsResponse, isLoading } = useQuery({
-    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection],
+    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection, searchField],
     queryFn: () => {
       const ordering = sortField
         ? (sortDirection === 'desc' ? `-${sortField}` : sortField)
         : undefined;
-      return listsApi.getContacts(listId!, debouncedSearch || undefined, currentPage, ordering);
+      return listsApi.getContacts(
+        listId!,
+        debouncedSearch || undefined,
+        currentPage,
+        ordering,
+        searchField || undefined
+      );
     },
     enabled: !!listId,
   });
@@ -60,6 +67,11 @@ export function ContactsPage() {
       setDebouncedSearch(value);
     }, 500);
     return () => clearTimeout(timeout);
+  };
+
+  const handleSearchFieldChange = (field: string) => {
+    setSearchField(field);
+    setCurrentPage(1); // Reset to first page
   };
 
   return (
@@ -91,17 +103,41 @@ export function ContactsPage() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search Controls */}
       <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <Input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search contacts by name, email, company..."
-            className="pl-10"
-          />
+        <div className="flex gap-3 items-center">
+          {/* Search Field Selector */}
+          {availableFields.length > 0 && (
+            <select
+              value={searchField}
+              onChange={(e) => handleSearchFieldChange(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[200px]"
+            >
+              <option value="">Select field to search...</option>
+              {availableFields.map((field) => (
+                <option key={field} value={field}>
+                  {field}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Search Input - disabled if no field selected */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              disabled={!searchField}
+              placeholder={
+                searchField
+                  ? `Search in ${searchField}...`
+                  : "Select a field first..."
+              }
+              className="pl-10"
+            />
+          </div>
         </div>
       </div>
 

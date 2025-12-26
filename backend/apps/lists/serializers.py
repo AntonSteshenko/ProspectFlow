@@ -1,23 +1,11 @@
 """
-Serializers for contact lists, contacts, and column mappings.
+Serializers for contact lists, contacts.
 
 Handles validation and serialization of JSONB data.
 """
 from rest_framework import serializers
-from .models import ContactList, Contact, ColumnMapping
+from .models import ContactList, Contact
 
-
-class ColumnMappingSerializer(serializers.ModelSerializer):
-    """
-    Serializer for column mappings.
-
-    Maps original CSV column names to standardized field names.
-    """
-
-    class Meta:
-        model = ColumnMapping
-        fields = ['id', 'original_column', 'mapped_field', 'created_at']
-        read_only_fields = ['id', 'created_at']
 
 
 class ContactSerializer(serializers.ModelSerializer):
@@ -99,10 +87,9 @@ class ContactListDetailSerializer(ContactListSerializer):
     """
 
     recent_contacts = serializers.SerializerMethodField()
-    column_mappings = ColumnMappingSerializer(many=True, read_only=True)
 
     class Meta(ContactListSerializer.Meta):
-        fields = ContactListSerializer.Meta.fields + ['recent_contacts', 'column_mappings']
+        fields = ContactListSerializer.Meta.fields + ['recent_contacts']
 
     def get_recent_contacts(self, obj):
         """Return 10 most recent non-deleted contacts."""

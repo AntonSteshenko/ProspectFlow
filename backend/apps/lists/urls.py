@@ -10,7 +10,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested import routers
 
-from .views import ContactListViewSet, ContactViewSet, ColumnMappingViewSet
+from .views import ContactListViewSet, ContactViewSet
 
 app_name = 'lists'
 
@@ -22,7 +22,6 @@ router.register(r'contacts', ContactViewSet, basename='contact')
 # Nested routers for list-specific resources
 lists_router = routers.NestedDefaultRouter(router, r'lists', lookup='list')
 lists_router.register(r'contacts', ContactViewSet, basename='list-contacts')
-lists_router.register(r'mappings', ColumnMappingViewSet, basename='list-mappings')
 
 urlpatterns = [
     path('', include(router.urls)),

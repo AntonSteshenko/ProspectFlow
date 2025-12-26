@@ -57,29 +57,31 @@ class ContactService:
         return created_contacts
 
     @classmethod
-    def search_contacts(cls, contact_list: ContactList, query: str):
+    def search_contacts(cls, contact_list: ContactList, query: str, search_field: str = None):
         """
         Search contacts by text query in JSONB data.
-
-        Uses PostgreSQL's JSONB contains operator for efficient search.
 
         Args:
             contact_list: ContactList to search within
             query: Search query string
+            search_field: Optional specific field to search in (e.g., 'email', 'company')
+                         If None or empty, returns all contacts (no search)
 
         Returns:
             QuerySet: Filtered Contact queryset
         """
-        if not query:
-            return contact_list.contacts.filter(is_deleted=False)
+        # Base queryset - non-deleted contacts
+        contacts = contact_list.contacts.filter(is_deleted=False)
 
-        # Search in common fields
-        # Note: This is a simple implementation. For production,
-        # consider using PostgreSQL full-text search or dedicated search engine
-        contacts = contact_list.contacts.filter(
-            is_deleted=False
-        ).filter(
-            Q(data__icontains=query)  # Simple JSONB contains search
+        # Se non c'è query o campo, ritorna tutti i contatti
+        if not query or not search_field:
+            return contacts
+
+        # Cerca solo nel campo specifico usando JSONB field access
+        # Cast a testo per ricerca case-insensitive con PostgreSQL ILIKE
+        contacts = contacts.extra(
+            where=["data->>%s ILIKE %s"],
+            params=[search_field, f'%{query}%']
         )
 
         return contacts

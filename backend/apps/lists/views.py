@@ -12,13 +12,12 @@ from django.shortcuts import get_object_or_404
 from django.db.models import F, OrderBy
 from django.db.models.expressions import RawSQL
 
-from .models import ContactList, Contact, ColumnMapping
+from .models import ContactList, Contact
 from .serializers import (
     ContactListSerializer,
     ContactListDetailSerializer,
     ContactListCreateSerializer,
     ContactSerializer,
-    ColumnMappingSerializer,
     FileUploadSerializer
 )
 from .permissions import IsOwner, IsContactListOwner
@@ -297,9 +296,10 @@ class ContactListViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(
         summary="List contacts",
-        description="Get all contacts in a contact list with optional search and ordering.",
+        description="Get all contacts in a contact list with optional field-specific search and ordering.",
         parameters=[
-            OpenApiParameter('search', str, description='Search query'),
+            OpenApiParameter('search', str, description='Search query text'),
+            OpenApiParameter('search_field', str, description='Specific JSONB field to search in (e.g., email, company). Required for search to work.'),
             OpenApiParameter('ordering', str, description='Field to order by. Prefix with - for descending (e.g., -company, first_name)'),
         ],
         tags=["Contacts"]
@@ -360,10 +360,11 @@ class ContactViewSet(viewsets.ModelViewSet):
 
         # Apply search if provided
         search = self.request.query_params.get('search')
+        search_field = self.request.query_params.get('search_field')
         if search:
             list_id = self.kwargs.get('list_pk') or queryset.first().list_id
             contact_list = ContactList.objects.get(id=list_id)
-            queryset = ContactService.search_contacts(contact_list, search)
+            queryset = ContactService.search_contacts(contact_list, search, search_field)
 
         # Apply ordering if provided
         ordering = self.request.query_params.get('ordering')
@@ -408,41 +409,3 @@ class ContactViewSet(viewsets.ModelViewSet):
         """Soft delete instead of hard delete."""
         ContactService.soft_delete_contact(instance)
 
-
-@extend_schema_view(
-    list=extend_schema(
-        summary="List column mappings",
-        description="Get all column mappings for a contact list.",
-        tags=["Column Mappings"]
-    ),
-    create=extend_schema(
-        summary="Create column mapping",
-        description="Create a new column mapping for a contact list.",
-        tags=["Column Mappings"]
-    ),
-)
-class ColumnMappingViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for ColumnMapping CRUD operations.
-
-    Usually accessed as nested route under ContactList.
-    """
-    serializer_class = ColumnMappingSerializer
-    permission_classes = [IsAuthenticated, IsContactListOwner]
-    http_method_names = ['get', 'post', 'delete']  # No PUT/PATCH
-
-    def get_queryset(self):
-        """Return column mappings for lists owned by the current user."""
-        list_id = self.kwargs.get('list_pk')
-
-        if list_id:
-            contact_list = get_object_or_404(
-                ContactList,
-                id=list_id,
-                owner=self.request.user
-            )
-            return contact_list.column_mappings.all()
-
-        return ColumnMapping.objects.filter(
-            list__owner=self.request.user
-        ).select_related('list')
