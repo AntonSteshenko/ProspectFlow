@@ -46,6 +46,12 @@ class ContactList(models.Model):
         blank=True,
         help_text="Flexible JSONB field for future extensions (file info, stats, etc.)"
     )
+    uploaded_file = models.FileField(
+        upload_to='uploads/%Y/%m/%d/',
+        null=True,
+        blank=True,
+        help_text="Uploaded CSV/XLSX file"
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

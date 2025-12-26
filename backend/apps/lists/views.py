@@ -106,7 +106,8 @@ class ContactListViewSet(viewsets.ModelViewSet):
             # Get preview data
             preview_data = UploadService.parse_preview(file)
 
-            # Store file info in metadata
+            # Save the uploaded file
+            contact_list.uploaded_file = file
             contact_list.metadata = contact_list.metadata or {}
             contact_list.metadata['file_name'] = file.name
             contact_list.metadata['file_size'] = file.size
@@ -123,6 +124,107 @@ class ContactListViewSet(viewsets.ModelViewSet):
         except ValueError as e:
             return Response(
                 {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @extend_schema(
+        summary="Save column mappings",
+        description="Save column mappings for the uploaded file.",
+        request={'mappings': dict},
+        responses={200: dict},
+        tags=["Contact Lists"]
+    )
+    @action(detail=True, methods=['post'], url_path='save-mappings')
+    def save_mappings(self, request, pk=None):
+        """
+        Save column mappings.
+
+        Expects:
+            mappings: Dict of {original_column: {type: mapped_field, customName: optional}}
+        """
+        contact_list = self.get_object()
+        mappings = request.data.get('mappings', {})
+
+        try:
+            # Update existing mappings
+            for original_column, mapping_data in mappings.items():
+                mapped_field = mapping_data.get('type', '')
+                custom_name = mapping_data.get('customName')
+
+                # Update or create the mapping
+                column_mapping, created = ColumnMapping.objects.update_or_create(
+                    list=contact_list,
+                    original_column=original_column,
+                    defaults={
+                        'mapped_field': mapped_field if mapped_field != 'custom' else (custom_name or ''),
+                    }
+                )
+
+            return Response({
+                'message': 'Mappings saved successfully',
+            })
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @extend_schema(
+        summary="Import contacts from uploaded file",
+        description="Import all contacts from uploaded file with all fields as JSONB.",
+        responses={200: dict},
+        tags=["Contact Lists"]
+    )
+    @action(detail=True, methods=['post'], url_path='import')
+    def import_contacts(self, request, pk=None):
+        """
+        Import contacts from uploaded file.
+
+        All CSV/XLSX columns are saved directly to JSONB data field.
+        """
+        contact_list = self.get_object()
+
+        # Check if file was uploaded
+        if not contact_list.uploaded_file:
+            return Response(
+                {'error': 'No file uploaded. Please upload a file first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Parse entire file
+            file_path = contact_list.uploaded_file.path
+            with open(file_path, 'rb') as f:
+                data = ParserService.parse_file(f)
+
+            # Delete existing contacts to avoid duplicates
+            contact_list.contacts.all().delete()
+
+            # Create contacts directly from data (no mapping needed)
+            contacts_created = 0
+            for row in data:
+                # Save all fields as-is in JSONB
+                Contact.objects.create(
+                    list=contact_list,
+                    data=row  # All columns stored in JSONB
+                )
+                contacts_created += 1
+
+            # Update list status
+            contact_list.status = 'completed'
+            contact_list.save()
+
+            return Response({
+                'message': 'Contacts imported successfully',
+                'contacts_created': contacts_created,
+            })
+
+        except Exception as e:
+            contact_list.status = 'failed'
+            contact_list.save()
+            return Response(
+                {'error': f'Import failed: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
