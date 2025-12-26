@@ -18,7 +18,7 @@
 ## PROJECT STATUS
 
 **Phase**: MVP Implementation - Step 4 Complete
-**Last Updated**: 2025-12-25
+**Last Updated**: 2025-12-26
 
 ### Completed
 - ✅ CONCEPT.md created - Vision and architectural principles defined
@@ -56,17 +56,20 @@
   - ✅ Nested routes for list-specific resources
 
 - ✅ **Step 4: React Frontend Complete**
-  - ✅ Vite + React 19 + TypeScript initialized
+  - ✅ Vite 7 + React 19 + TypeScript initialized
   - ✅ Tailwind CSS v4.1 configured with @tailwindcss/vite
   - ✅ TanStack Query + React Router v7 setup
   - ✅ API client with JWT interceptors
   - ✅ Auth pages (login, register) with React Hook Form + Zod
-  - ✅ Dashboard with ContactList cards
-  - ✅ Upload page with react-dropzone (CSV/XLSX)
-  - ✅ Column mapping page with field selection
-  - ✅ Contacts view with search and JSONB field display
+  - ✅ Dashboard with ContactList cards and actions (Upload, View)
+  - ✅ Upload page with react-dropzone (CSV/XLSX) and preview
+  - ✅ Simplified import: all CSV columns saved directly to JSONB
+  - ✅ ContactsPage with search, pagination (50/page), and dynamic display
+  - ✅ ListSettingsPage: user-selectable title field + column visibility
+  - ✅ Display options per column: show/hide/show_if_not_null
+  - ✅ Two-column responsive layout for contact cards
   - ✅ UI components (Button, Input, Card, Spinner)
-  - ✅ Protected routes and layout
+  - ✅ Protected routes and AppLayout
   - ✅ Frontend added to docker-compose.yml
   - ✅ Path aliases (@/) configured
 
@@ -98,7 +101,7 @@
 
 **Architecture Pattern**: Service layer for business logic (`backend/services/`)
 
-**MVP Scope**: Upload CSV/XLSX → Map columns → Store contacts → Search/filter
+**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Search/filter/paginate
 
 **Out of Scope (Phase 2+)**: Traefik, CI/CD, Ansible, data enrichment, integrations
 

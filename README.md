@@ -4,9 +4,9 @@ Self-hosted contact list processing for prospecting purposes.
 
 ## Overview
 
-**ProspectFlow** is a minimalist, AI-extensible application for processing business contact lists. Built with Django 5 + DRF backend and React 18 frontend, it provides a solid foundation for importing, normalizing, and managing prospect data.
+**ProspectFlow** is a minimalist, AI-extensible application for processing business contact lists. Built with Django 5 + DRF backend and React 19 frontend, it provides a solid foundation for importing, normalizing, and managing prospect data.
 
-**Status**: Step 1 Complete - Backend scaffolding and Docker setup ready
+**Status**: MVP Complete - Full-stack application ready for testing
 
 ## Quick Start
 
@@ -39,6 +39,7 @@ Self-hosted contact list processing for prospecting purposes.
    ```
 
 4. **Access the application**
+   - Frontend App: http://localhost:5173/
    - Django Admin: http://localhost:8000/admin/
    - API Docs (Swagger): http://localhost:8000/api/docs/
    - API Schema: http://localhost:8000/api/schema/
@@ -80,7 +81,21 @@ prospectflow/
 │   ├── manage.py
 │   ├── requirements.txt
 │   └── Dockerfile
-├── frontend/                 # React frontend (Step 4)
+├── frontend/                 # React 19 frontend
+│   ├── src/
+│   │   ├── api/             # API client and endpoints
+│   │   ├── components/      # Reusable UI components
+│   │   │   ├── ui/          # Base components (Button, Input, Card, Spinner)
+│   │   │   └── layout/      # Layout components (AppLayout)
+│   │   ├── features/        # Feature-based modules
+│   │   │   ├── auth/        # Authentication (login, register)
+│   │   │   └── lists/       # Contact lists (Dashboard, Upload, Contacts, Settings)
+│   │   ├── types/           # TypeScript type definitions
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   └── package.json
 ├── compose.yml              # Development setup
 ├── Makefile                 # Development commands
 ├── .env.example             # Environment variables template
@@ -99,11 +114,14 @@ prospectflow/
 - **API Docs**: drf-spectacular (OpenAPI/Swagger)
 - **Authentication**: JWT (djangorestframework-simplejwt)
 
-### Frontend (Coming in Step 4)
-- **Framework**: React 18 + TypeScript
-- **Build**: Vite
-- **State**: TanStack Query
-- **CSS**: Tailwind CSS
+### Frontend
+- **Framework**: React 19 + TypeScript
+- **Build**: Vite 7
+- **Routing**: React Router v7
+- **State**: TanStack Query (React Query)
+- **Forms**: React Hook Form + Zod validation
+- **CSS**: Tailwind CSS v4.1 (@tailwindcss/vite)
+- **File Upload**: react-dropzone
 
 ### Infrastructure
 - **Containerization**: Docker + Docker Compose
@@ -117,36 +135,51 @@ When running `docker compose up`, the following services start:
 - **redis** (port 6379) - Redis for Celery broker
 - **django** (port 8000) - Django API server
 - **celery** - Celery worker for async tasks
+- **frontend** (port 5173) - React + Vite development server
 
 ## Development Workflow
 
 ### Step 1: Backend Setup ✅ COMPLETE
-- [x] Django project initialized
-- [x] PostgreSQL + Redis configured
+- [x] Django 5.1 project initialized
+- [x] PostgreSQL 15 + Redis configured
 - [x] Docker Compose setup
 - [x] Three Django apps created: users, lists, processing
 - [x] Celery configured
-- [x] Basic User model
-- [x] OpenAPI/Swagger docs enabled
+- [x] Basic User model with UUID and email auth
+- [x] OpenAPI/Swagger docs enabled (drf-spectacular)
 
-### Step 2: Core Models (Next)
-- [ ] ContactList model (with JSONB metadata)
-- [ ] Contact model (with JSONB data field)
-- [ ] ColumnMapping model
-- [ ] Migrations created and applied
+### Step 2: Core Models ✅ COMPLETE
+- [x] ContactList model (with JSONB metadata, status, uploaded_file)
+- [x] Contact model (with JSONB data field and soft delete)
+- [x] ColumnMapping model
+- [x] GIN indexes on JSONB fields for performance
+- [x] Migrations created and applied
 
-### Step 3: API Endpoints
-- [ ] Authentication (register, login, JWT)
-- [ ] ContactList CRUD
-- [ ] File upload endpoint
-- [ ] Contact list/search/filter
+### Step 3: API Endpoints ✅ COMPLETE
+- [x] Authentication (register, login/JWT, profile)
+- [x] ContactList CRUD + file upload/import endpoints
+- [x] Contact CRUD + search functionality with pagination
+- [x] ColumnMapping CRUD
+- [x] Service layer (auth, upload, parser, contact services)
+- [x] Object-level permissions (IsOwner, IsContactListOwner)
+- [x] CSV/XLSX file parsing and preview
 
-### Step 4: React Frontend
-- [ ] Initialize Vite + React + TypeScript
-- [ ] Authentication pages
-- [ ] Dashboard
-- [ ] File upload & column mapping UI
-- [ ] Contact list view
+### Step 4: React Frontend ✅ COMPLETE
+- [x] Vite 7 + React 19 + TypeScript
+- [x] TanStack Query + React Router v7
+- [x] Tailwind CSS v4.1 with @tailwindcss/vite
+- [x] Authentication pages (login, register)
+- [x] Dashboard with ContactList cards
+- [x] File upload page with preview (react-dropzone)
+- [x] ContactsPage with search and pagination
+- [x] ListSettingsPage for configurable display
+- [x] Simplified import: all CSV columns → JSONB
+- [x] User-selectable title field + column visibility options
+
+### Step 5: Final Integration & Testing (Current)
+- [ ] End-to-end workflow testing
+- [ ] Bug fixes and refinements
+- [ ] Production deployment preparation
 
 ## API Documentation
 
@@ -191,24 +224,43 @@ Following the principles defined in `project/CONCEPT.md`:
 | **Convention over Config** | Django + React best practices |
 | **Self-Contained** | `docker compose up` and it works |
 
-## Next Steps
+## Features
 
-1. **Implement Core Models (Step 2)**
-   ```bash
-   # Models will be added to:
-   # - backend/apps/users/models.py (enhance User model)
-   # - backend/apps/lists/models.py (ContactList, Contact, ColumnMapping)
-   ```
+### Current Features (MVP Complete)
 
-2. **Create Database Migrations**
-   ```bash
-   make makemigrations
-   make migrate
-   ```
+**Authentication & User Management**
+- User registration and login with JWT tokens
+- Protected routes and persistent sessions
 
-3. **Implement API Endpoints (Step 3)**
+**Contact List Management**
+- Create and manage multiple contact lists
+- Upload CSV/XLSX files with automatic parsing
+- Preview file contents before import
+- All columns stored in flexible JSONB format
 
-4. **Build React Frontend (Step 4)**
+**Contact Display & Management**
+- Search contacts across all fields
+- Pagination (50 contacts per page)
+- Configurable display settings per list
+- Choose title field for contact cards
+- Per-column visibility: show/hide/show_if_not_null
+- Two-column responsive layout
+
+**Technical Features**
+- Full-text search on JSONB contact data
+- GIN indexes for fast JSONB queries
+- Soft delete for contacts
+- Object-level permissions (owner-only access)
+- OpenAPI/Swagger documentation
+
+### Workflow
+
+1. **Register/Login** → Create account or sign in
+2. **Create List** → New contact list from dashboard
+3. **Upload File** → Drop CSV/XLSX, see preview
+4. **Auto-Import** → All columns saved to JSONB automatically
+5. **Configure Display** → Choose title field and column visibility
+6. **Browse & Search** → View, search, and paginate through contacts
 
 ## Troubleshooting
 
