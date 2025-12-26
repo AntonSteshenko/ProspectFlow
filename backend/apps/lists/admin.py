@@ -1,12 +1,12 @@
 """
 Admin configuration for lists app.
 
-Provides admin interfaces for ContactList, Contact, ColumnMapping, and Activity models
+Provides admin interfaces for ContactList, Contact,and Activity models
 with appropriate list displays, filters, and search capabilities.
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import ContactList, Contact, ColumnMapping, Activity
+from .models import ContactList, Contact, Activity
 
 
 @admin.register(ContactList)
@@ -91,50 +91,6 @@ class ContactAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.select_related('list', 'list__owner')
 
-
-@admin.register(ColumnMapping)
-class ColumnMappingAdmin(admin.ModelAdmin):
-    """Admin interface for ColumnMapping model."""
-
-    list_display = ['mapping_display', 'list_name', 'created_at']
-    list_filter = ['created_at', 'list']
-    search_fields = ['original_column', 'mapped_field', 'list__name']
-    readonly_fields = ['id', 'created_at']
-    ordering = ['list', 'created_at']
-
-    fieldsets = [
-        ('Basic Information', {
-            'fields': ['id', 'list']
-        }),
-        ('Mapping', {
-            'fields': ['original_column', 'mapped_field'],
-            'description': 'Maps original CSV column names to standardized field names.',
-        }),
-        ('Timestamps', {
-            'fields': ['created_at'],
-            'classes': ['collapse'],
-        }),
-    ]
-
-    def mapping_display(self, obj):
-        """Display mapping in arrow format."""
-        return format_html(
-            '<span style="color: #666;">{}</span> → <strong>{}</strong>',
-            obj.original_column,
-            obj.mapped_field
-        )
-    mapping_display.short_description = 'Mapping'
-
-    def list_name(self, obj):
-        """Display contact list name."""
-        return obj.list.name
-    list_name.short_description = 'List'
-    list_name.admin_order_field = 'list__name'
-
-    def get_queryset(self, request):
-        """Optimize queries with select_related."""
-        qs = super().get_queryset(request)
-        return qs.select_related('list', 'list__owner')
 
 
 @admin.register(Activity)
