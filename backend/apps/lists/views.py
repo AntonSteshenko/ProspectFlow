@@ -134,49 +134,6 @@ class ContactListViewSet(viewsets.ModelViewSet):
             )
 
     @extend_schema(
-        summary="Save column mappings",
-        description="Save column mappings for the uploaded file.",
-        request={'mappings': dict},
-        responses={200: dict},
-        tags=["Contact Lists"]
-    )
-    @action(detail=True, methods=['post'], url_path='save-mappings')
-    def save_mappings(self, request, pk=None):
-        """
-        Save column mappings.
-
-        Expects:
-            mappings: Dict of {original_column: {type: mapped_field, customName: optional}}
-        """
-        contact_list = self.get_object()
-        mappings = request.data.get('mappings', {})
-
-        try:
-            # Update existing mappings
-            for original_column, mapping_data in mappings.items():
-                mapped_field = mapping_data.get('type', '')
-                custom_name = mapping_data.get('customName')
-
-                # Update or create the mapping
-                column_mapping, created = ColumnMapping.objects.update_or_create(
-                    list=contact_list,
-                    original_column=original_column,
-                    defaults={
-                        'mapped_field': mapped_field if mapped_field != 'custom' else (custom_name or ''),
-                    }
-                )
-
-            return Response({
-                'message': 'Mappings saved successfully',
-            })
-
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    @extend_schema(
         summary="Import contacts from uploaded file",
         description="Import all contacts from uploaded file with all fields as JSONB.",
         responses={200: dict},
@@ -371,6 +328,11 @@ class ContactViewSet(viewsets.ModelViewSet):
             contact_list = ContactList.objects.get(id=list_id)
             queryset = ContactService.search_contacts(contact_list, search, search_field)
 
+        # Filter for pipeline contacts if requested
+        in_pipeline = self.request.query_params.get('in_pipeline')
+        if in_pipeline == 'true':
+            queryset = queryset.filter(in_pipeline=True)
+
         # Apply ordering if provided
         ordering = self.request.query_params.get('ordering')
         if ordering:
@@ -413,6 +375,99 @@ class ContactViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         """Soft delete instead of hard delete."""
         ContactService.soft_delete_contact(instance)
+
+    @extend_schema(
+        summary="Toggle contact in/out of pipeline",
+        description="Add or remove contact from active pipeline.",
+        request=None,
+        responses={200: ContactSerializer},
+        tags=["Contacts"]
+    )
+    @action(detail=True, methods=['post'], url_path='toggle-pipeline')
+    def toggle_pipeline(self, request, pk=None):
+        """
+        Toggle contact in_pipeline flag.
+
+        Returns updated contact with new in_pipeline value.
+        """
+        contact = self.get_object()
+        contact.in_pipeline = not contact.in_pipeline
+        contact.save()
+
+        serializer = self.get_serializer(contact)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Bulk pipeline operations",
+        description="Add all filtered contacts to pipeline or clear entire pipeline.",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'action': {
+                        'type': 'string',
+                        'enum': ['add_filtered', 'clear_all'],
+                        'description': 'add_filtered: add current filtered contacts to pipeline, clear_all: remove all from pipeline'
+                    },
+                    'search': {'type': 'string', 'description': 'Search query (for add_filtered)'},
+                    'search_field': {'type': 'string', 'description': 'Field to search in (for add_filtered)'}
+                },
+                'required': ['action']
+            }
+        },
+        responses={200: {'type': 'object', 'properties': {'updated_count': {'type': 'integer'}}}},
+        tags=["Contacts"]
+    )
+    @action(detail=False, methods=['post'], url_path='bulk-pipeline')
+    def bulk_pipeline(self, request, list_pk=None):
+        """
+        Bulk pipeline operations.
+
+        Actions:
+        - add_filtered: Add all currently filtered contacts to pipeline
+        - clear_all: Remove all contacts from pipeline
+        """
+        action = request.data.get('action')
+
+        if action not in ['add_filtered', 'clear_all']:
+            return Response(
+                {'error': 'Invalid action. Must be add_filtered or clear_all'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get base queryset
+        list_id = list_pk or self.kwargs.get('list_pk')
+        if list_id:
+            contact_list = get_object_or_404(
+                ContactList,
+                id=list_id,
+                owner=request.user
+            )
+            queryset = contact_list.contacts.filter(is_deleted=False)
+        else:
+            queryset = Contact.objects.filter(
+                list__owner=request.user,
+                is_deleted=False
+            )
+
+        if action == 'add_filtered':
+            # Apply same filters as get_queryset
+            search = request.data.get('search')
+            search_field = request.data.get('search_field')
+
+            if search and search_field:
+                list_id_for_search = list_pk or queryset.first().list_id
+                contact_list_for_search = ContactList.objects.get(id=list_id_for_search)
+                queryset = ContactService.search_contacts(contact_list_for_search, search, search_field)
+
+            # Update filtered contacts to in_pipeline=True
+            updated_count = queryset.update(in_pipeline=True)
+
+        elif action == 'clear_all':
+            # Clear all contacts in the list
+            updated_count = queryset.update(in_pipeline=False)
+
+        return Response({'updated_count': updated_count})
 
 
 @extend_schema_view(
@@ -493,7 +548,8 @@ class ActivityViewSet(viewsets.ModelViewSet):
         if contact.list.owner != self.request.user:
             raise PermissionDenied("You don't own this contact")
 
-        ActivityService.create_activity(
+        # Create via service and save the instance
+        activity = ActivityService.create_activity(
             contact=contact,
             user=self.request.user,
             activity_type=serializer.validated_data['type'],
@@ -501,6 +557,8 @@ class ActivityViewSet(viewsets.ModelViewSet):
             date=serializer.validated_data.get('date'),
             content=serializer.validated_data.get('content', '')
         )
+        # Assign to serializer instance so DRF can return it
+        serializer.instance = activity
 
     def perform_update(self, serializer):
         """
@@ -509,7 +567,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         Uses ActivityService to handle edit history and permissions.
         """
         try:
-            ActivityService.update_activity(
+            activity = ActivityService.update_activity(
                 activity=self.get_object(),
                 user=self.request.user,
                 activity_type=serializer.validated_data.get('type'),
@@ -517,6 +575,8 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 date=serializer.validated_data.get('date'),
                 content=serializer.validated_data.get('content')
             )
+            # Assign to serializer instance so DRF can return it
+            serializer.instance = activity
         except (PermissionError, ValueError) as e:
             raise PermissionDenied(str(e))
 

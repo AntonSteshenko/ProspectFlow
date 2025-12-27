@@ -22,7 +22,7 @@ class ContactSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Contact
-        fields = ['id', 'list', 'data', 'status', 'activities_count',
+        fields = ['id', 'list', 'data', 'status', 'in_pipeline', 'activities_count',
                   'created_at', 'updated_at', 'is_deleted']
         read_only_fields = ['id', 'status', 'created_at', 'updated_at']
 

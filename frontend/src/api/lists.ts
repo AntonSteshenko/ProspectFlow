@@ -75,13 +75,33 @@ export const listsApi = {
   /**
    * Get contacts for a list
    */
-  getContacts: async (listId: string, search?: string, page?: number, ordering?: string, searchField?: string): Promise<any> => {
+  getContacts: async (listId: string, search?: string, page?: number, ordering?: string, searchField?: string, inPipeline?: boolean): Promise<any> => {
     const params: any = {};
     if (search) params.search = search;
     if (page) params.page = page;
     if (ordering) params.ordering = ordering;
     if (searchField) params.search_field = searchField;
+    if (inPipeline !== undefined) params.in_pipeline = inPipeline;
     const response = await apiClient.get(`/lists/${listId}/contacts/`, { params });
+    return response.data;
+  },
+
+  /**
+   * Toggle contact in/out of pipeline
+   */
+  togglePipeline: async (contactId: string): Promise<any> => {
+    const response = await apiClient.post(`/contacts/${contactId}/toggle-pipeline/`);
+    return response.data;
+  },
+
+  /**
+   * Bulk pipeline operations
+   */
+  bulkPipeline: async (listId: string, action: 'add_filtered' | 'clear_all', search?: string, searchField?: string): Promise<{ updated_count: number }> => {
+    const data: any = { action };
+    if (search) data.search = search;
+    if (searchField) data.search_field = searchField;
+    const response = await apiClient.post<{ updated_count: number }>(`/lists/${listId}/contacts/bulk-pipeline/`, data);
     return response.data;
   },
 

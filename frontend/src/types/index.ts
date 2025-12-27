@@ -40,6 +40,7 @@ export interface Contact {
   list: string;
   data: Record<string, any>;
   status: ContactStatus;
+  in_pipeline: boolean;
   created_at: string;
   updated_at: string;
   is_deleted: boolean;

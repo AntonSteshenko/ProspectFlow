@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Phone, Mail, CheckCircle, UserX } from 'lucide-react';
+import { Calendar, Phone, Mail, CheckCircle, UserX, ChevronDown, ChevronUp } from 'lucide-react';
 import apiClient from '@/api/client';
 import { listsApi } from '@/api/lists';
 import type { Contact, Activity, ActivityType, ActivityResult } from '@/types';
@@ -20,6 +20,9 @@ export function ContactDetailPage() {
 
   // State for editing activity
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // State for collapsing contact info
+  const [isContactInfoExpanded, setIsContactInfoExpanded] = useState(false);
 
   // Fetch contact details
   const { data: contact, isLoading: contactLoading } = useQuery({
@@ -313,16 +316,45 @@ export function ContactDetailPage() {
       {/* Contact Information */}
       <Card className="mb-3">
         <div className="p-3">
-          <h2 className="text-lg font-semibold mb-2">Contact Information</h2>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-semibold">Contact Information</h2>
+            <button
+              onClick={() => setIsContactInfoExpanded(!isContactInfoExpanded)}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+            >
+              {isContactInfoExpanded ? (
+                <>
+                  <span>Show less</span>
+                  <ChevronUp className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <span>Show all</span>
+                  <ChevronDown className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-            {Object.entries(contact.data).map(([key, value]) => (
-              <div key={key} className="flex gap-2">
-                <dt className="text-sm font-medium text-gray-500 capitalize min-w-[120px]">
-                  {key.replace(/_/g, ' ')}:
-                </dt>
-                <dd className="text-sm text-gray-900">{value || '-'}</dd>
-              </div>
-            ))}
+            {Object.entries(contact.data)
+              .filter(([key, value]) => {
+                // Skip internal fields (starting with _)
+                if (key.startsWith('_')) return false;
+                // When collapsed, only show fields with values
+                if (!isContactInfoExpanded) {
+                  return value !== null && value !== undefined && value !== '' && value !== 0;
+                }
+                // When expanded, show all fields
+                return true;
+              })
+              .map(([key, value]) => (
+                <div key={key} className="flex gap-2">
+                  <dt className="text-sm font-medium text-gray-500 capitalize min-w-[120px]">
+                    {key.replace(/_/g, ' ')}:
+                  </dt>
+                  <dd className="text-sm text-gray-900">{value || '-'}</dd>
+                </div>
+              ))}
           </div>
         </div>
       </Card>

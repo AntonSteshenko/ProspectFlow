@@ -58,7 +58,7 @@ class IsActivityOwnerOrReadOnly(permissions.BasePermission):
 
     - Read: User must own the parent ContactList
     - Create: Allowed if user owns ContactList
-    - Update/Delete: Only author of user_comment
+    - Update/Delete: Only author of the activity
     """
 
     def has_permission(self, request, view):
@@ -102,8 +102,8 @@ class IsActivityOwnerOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Write access: only author of user_comment
+        # Write access: only author of the activity (and not already deleted)
         if request.method in ['PUT', 'PATCH', 'DELETE']:
-            return (obj.type == 'user_comment' and obj.author == request.user and not obj.is_deleted)
+            return (obj.author == request.user and not obj.is_deleted)
 
         return False

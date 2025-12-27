@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, ArrowLeft, Settings, MessageSquare } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import type { ContactStatus } from '@/types';
@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 export function ContactsPage() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Helper function to get status badge styling
   const getStatusBadge = (status: ContactStatus) => {
@@ -29,6 +30,7 @@ export function ContactsPage() {
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchField, setSearchField] = useState<string>('');
+  const [showPipelineOnly, setShowPipelineOnly] = useState(false);
 
   // Get list details
   const { data: list } = useQuery({
@@ -37,9 +39,26 @@ export function ContactsPage() {
     enabled: !!listId,
   });
 
+  // Toggle pipeline mutation
+  const togglePipelineMutation = useMutation({
+    mutationFn: (contactId: string) => listsApi.togglePipeline(contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
+  // Bulk pipeline mutation
+  const bulkPipelineMutation = useMutation({
+    mutationFn: ({ action, search, searchField }: { action: 'add_filtered' | 'clear_all'; search?: string; searchField?: string }) =>
+      listsApi.bulkPipeline(listId!, action, search, searchField),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
   // Get contacts with search, pagination, and ordering
   const { data: contactsResponse, isLoading } = useQuery({
-    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection, searchField],
+    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection, searchField, showPipelineOnly],
     queryFn: () => {
       const ordering = sortField
         ? (sortDirection === 'desc' ? `-${sortField}` : sortField)
@@ -49,7 +68,8 @@ export function ContactsPage() {
         debouncedSearch || undefined,
         currentPage,
         ordering,
-        searchField || undefined
+        searchField || undefined,
+        showPipelineOnly || undefined
       );
     },
     enabled: !!listId,
@@ -192,6 +212,70 @@ export function ContactsPage() {
         </div>
       )}
 
+      {/* Pipeline Filter and Bulk Actions */}
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="pipeline-filter"
+            checked={showPipelineOnly}
+            onChange={(e) => {
+              setShowPipelineOnly(e.target.checked);
+              setCurrentPage(1); // Reset to first page
+            }}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="pipeline-filter" className="text-sm font-medium text-gray-700">
+            Show Pipeline Only
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              bulkPipelineMutation.mutate({
+                action: 'add_filtered',
+                search: debouncedSearch || undefined,
+                searchField: searchField || undefined
+              });
+            }}
+            disabled={bulkPipelineMutation.isPending}
+          >
+            {debouncedSearch ? 'Add Filtered to Pipeline' : 'Add All to Pipeline'}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              if (window.confirm('Remove all contacts from pipeline?')) {
+                bulkPipelineMutation.mutate({ action: 'clear_all' });
+              }
+            }}
+            disabled={bulkPipelineMutation.isPending}
+          >
+            Clear Pipeline
+          </Button>
+        </div>
+
+        {/* Contact count */}
+        {contactsResponse?.count !== undefined && (
+          <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded">
+            {debouncedSearch || showPipelineOnly ? (
+              <>
+                <span className="font-semibold">{contactsResponse.count}</span> contacts found
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">{contactsResponse.count}</span> total contacts
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Loading state */}
       {isLoading && (
         <div className="flex justify-center items-center py-12">
@@ -283,11 +367,35 @@ export function ContactsPage() {
               return (
                 <Card
                   key={contact.id}
-                  className="hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/contacts/${contact.id}`)}
+                  className="hover:shadow-md transition-shadow relative"
                 >
-                  {/* Title at the top */}
-                  <div className="flex items-center justify-between mb-4">
+                  {/* Pipeline Toggle Button - top left */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click
+                      togglePipelineMutation.mutate(contact.id);
+                    }}
+                    className={`absolute top-3 left-3 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
+                      contact.in_pipeline
+                        ? 'bg-blue-500 border-blue-500'
+                        : 'bg-white border-gray-300 hover:border-blue-400'
+                    }`}
+                    title={contact.in_pipeline ? 'Remove from pipeline' : 'Add to pipeline'}
+                  >
+                    {contact.in_pipeline && (
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Clickable area to navigate to detail (excluding toggle button) */}
+                  <div
+                    onClick={() => navigate(`/contacts/${contact.id}`)}
+                    className="cursor-pointer pl-10"
+                  >
+                    {/* Title at the top */}
+                    <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
                       {String(contact.data?.[titleFieldKey] || 'Contact')}
                     </h3>
@@ -333,6 +441,7 @@ export function ContactsPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
                   </div>
                 </Card>
               );

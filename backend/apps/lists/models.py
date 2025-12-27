@@ -97,6 +97,11 @@ class Contact(models.Model):
         db_index=True,
         help_text="Soft delete flag - deleted contacts remain in DB"
     )
+    in_pipeline = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Contact is actively being worked on (pipeline)"
+    )
 
     class Meta:
         db_table = 'contacts'
@@ -106,6 +111,7 @@ class Contact(models.Model):
         indexes = [
             models.Index(fields=['list', '-created_at']),
             models.Index(fields=['list', 'is_deleted']),
+            models.Index(fields=['list', 'in_pipeline']),
             GinIndex(fields=['data'], name='contact_data_gin'),
         ]
 
