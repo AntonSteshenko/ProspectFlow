@@ -33,10 +33,13 @@ export interface ContactList {
   updated_at: string;
 }
 
+export type ContactStatus = 'not_contacted' | 'in_working' | 'dropped' | 'converted';
+
 export interface Contact {
   id: string;
   list: string;
   data: Record<string, any>;
+  status: ContactStatus;
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
@@ -68,13 +71,18 @@ export interface TokenResponse {
   refresh: string;
 }
 
+export type ActivityType = 'call' | 'email' | 'visit';
+export type ActivityResult = 'no' | 'followup' | 'lead';
+
 export interface Activity {
   id: string;
   contact: string;
   author: string | null;
   author_email?: string;
   author_name: string;
-  type: 'user_comment' | 'system_event' | 'status_change' | 'field_update';
+  type: ActivityType;
+  result: ActivityResult;
+  date: string | null;  // ISO date YYYY-MM-DD
   content: string;
   metadata: Record<string, any>;
   is_edited: boolean;
@@ -87,9 +95,15 @@ export interface Activity {
 
 export interface ActivityCreate {
   contact: string;
-  content: string;
+  type: ActivityType;
+  result: ActivityResult;
+  date?: string | null;
+  content?: string;
 }
 
 export interface ActivityUpdate {
-  content: string;
+  type?: ActivityType;
+  result?: ActivityResult;
+  date?: string | null;
+  content?: string;
 }

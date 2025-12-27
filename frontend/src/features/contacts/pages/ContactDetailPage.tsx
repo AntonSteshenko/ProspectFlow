@@ -1,24 +1,25 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Calendar, Phone, Mail, CheckCircle, UserX } from 'lucide-react';
 import apiClient from '@/api/client';
 import { listsApi } from '@/api/lists';
-import type { Contact, Activity } from '@/types';
+import type { Contact, Activity, ActivityType, ActivityResult } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { ActivityEditor } from '../../../components/ui/ActivityEditor';
 
 export function ContactDetailPage() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // State for new comment
-  const [newComment, setNewComment] = useState('');
+  // State for adding new activity
+  const [isAdding, setIsAdding] = useState(false);
 
-  // State for editing
+  // State for editing activity
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
 
   // Fetch contact details
   const { data: contact, isLoading: contactLoading } = useQuery({
@@ -31,65 +32,70 @@ export function ContactDetailPage() {
   });
 
   // Fetch activities
-  const { data: activities = [], isLoading: activitiesLoading } = useQuery({
+  const { data: activitiesData = [], isLoading: activitiesLoading } = useQuery({
     queryKey: ['activities', contactId],
     queryFn: () => listsApi.getActivities(contactId!),
     enabled: !!contactId,
   });
 
-  // Create comment mutation
+  // Filter only new-format activities (with result field)
+  const activities = activitiesData.filter((activity: Activity) =>
+    activity.result !== undefined && activity.result !== null
+  );
+
+  // Create activity mutation
   const createMutation = useMutation({
-    mutationFn: (content: string) =>
-      listsApi.createActivity({ contact: contactId!, content }),
+    mutationFn: (data: { type: ActivityType; result: ActivityResult; date: string | null; content: string }) =>
+      listsApi.createActivity({
+        contact: contactId!,
+        type: data.type,
+        result: data.result,
+        date: data.date,
+        content: data.content
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', contactId] });
-      setNewComment('');
+      queryClient.invalidateQueries({ queryKey: ['contact', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      setIsAdding(false);
     },
   });
 
-  // Update comment mutation
+  // Update activity mutation
   const updateMutation = useMutation({
-    mutationFn: ({ activityId, content }: { activityId: string; content: string }) =>
-      listsApi.updateActivity(contactId!, activityId, { content }),
+    mutationFn: ({ activityId, data }: { activityId: string; data: any }) =>
+      listsApi.updateActivity(contactId!, activityId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       setEditingId(null);
-      setEditContent('');
     },
   });
 
-  // Delete comment mutation
+  // Delete activity mutation
   const deleteMutation = useMutation({
     mutationFn: (activityId: string) => listsApi.deleteActivity(contactId!, activityId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contact', contactId] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
   });
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      createMutation.mutate(newComment.trim());
-    }
+  const handleSaveNew = (type: ActivityType, result: ActivityResult, date: string | null, content: string) => {
+    createMutation.mutate({ type, result, date, content });
   };
 
-  const handleStartEdit = (activity: Activity) => {
-    setEditingId(activity.id);
-    setEditContent(activity.content);
-  };
-
-  const handleSaveEdit = (activityId: string) => {
-    if (editContent.trim()) {
-      updateMutation.mutate({ activityId, content: editContent.trim() });
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditContent('');
+  const handleSaveEdit = (activityId: string, type: ActivityType, result: ActivityResult, date: string | null, content: string) => {
+    updateMutation.mutate({
+      activityId,
+      data: { type, result, date, content }
+    });
   };
 
   const handleDelete = (activityId: string) => {
-    if (window.confirm('Are you sure you want to delete this comment?')) {
+    if (window.confirm('Are you sure you want to delete this activity?')) {
       deleteMutation.mutate(activityId);
     }
   };
@@ -103,6 +109,55 @@ export function ContactDetailPage() {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);
+  };
+
+  const formatActivityDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  };
+
+  const getActivityIcon = (type: ActivityType) => {
+    switch (type) {
+      case 'call':
+        return Phone;
+      case 'email':
+        return Mail;
+      case 'visit':
+        return Calendar;
+      default:
+        return Phone; // fallback
+    }
+  };
+
+  const getResultIcon = (result: ActivityResult) => {
+    switch (result) {
+      case 'lead':
+        return CheckCircle;
+      case 'followup':
+        return Calendar;
+      case 'no':
+        return UserX;
+      default:
+        return Calendar; // fallback
+    }
+  };
+
+  const getResultColor = (result: ActivityResult) => {
+    switch (result) {
+      case 'lead':
+        return 'bg-green-100 text-green-700';
+      case 'followup':
+        return 'bg-blue-100 text-blue-700';
+      case 'no':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700'; // fallback
+    }
   };
 
   if (contactLoading || activitiesLoading) {
@@ -133,53 +188,85 @@ export function ContactDetailPage() {
       </div>
 
       {/* Activities Timeline */}
-      <Card>
+      <Card className="mb-3">
         <div className="p-3">
-          <h2 className="text-lg font-semibold mb-2">Activity Timeline</h2>
-
-          {/* Add Comment Form */}
-          <div className="mb-2">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[50px]"
-            />
-            <div className="mt-1">
-              <Button
-                size="sm"
-                onClick={handleAddComment}
-                disabled={!newComment.trim() || createMutation.isPending}
-              >
-                {createMutation.isPending ? 'Adding...' : 'Add Comment'}
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-semibold">Activity Timeline</h2>
+            {!isAdding && (
+              <Button size="sm" onClick={() => setIsAdding(true)}>
+                Add Activity
               </Button>
-            </div>
+            )}
           </div>
 
+          {/* Add Activity Form */}
+          {isAdding && (
+            <div className="mb-3 p-3 bg-gray-50 rounded">
+              <ActivityEditor
+                onSave={handleSaveNew}
+                onCancel={() => setIsAdding(false)}
+                isLoading={createMutation.isPending}
+              />
+            </div>
+          )}
+
           {/* Activities List */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {activities.length === 0 ? (
-              <p className="text-gray-500 text-center py-3 text-sm">No comments yet. Add the first one!</p>
+              <p className="text-gray-500 text-center py-3 text-sm">
+                No activities yet. Add the first one!
+              </p>
             ) : (
               activities.map((activity) => (
-                <div key={activity.id} className="rounded p-1.5 bg-gray-100">
-                  {/* Activity Header */}
-                  <div className="flex justify-between items-start mb-0.5">
-                    <div className="text-sm flex gap-1">
-                      <span className="font-medium text-gray-900">{activity.author_name}</span>
-                      {activity.type === 'user_comment' && activity.is_edited && (
-                        <span className="ml-1 text-xs text-gray-500 italic">(edited)</span>
-                      )}
-                      <p className="text-gray-500">{formatDate(activity.created_at)}</p>
-                    </div>
-                    {activity.can_edit && activity.can_delete && (
-                      <div className="flex gap-0.5">
-                        {editingId !== activity.id && (
-                          <>
+                <div key={activity.id} className="rounded p-3 bg-gray-50 border border-gray-200">
+                  {editingId === activity.id ? (
+                    <ActivityEditor
+                      currentActivity={activity}
+                      onSave={(type, result, date, content) =>
+                        handleSaveEdit(activity.id, type, result, date, content)
+                      }
+                      onCancel={() => setEditingId(null)}
+                      isLoading={updateMutation.isPending}
+                    />
+                  ) : (
+                    <>
+                      {/* Activity Header */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-sm">
+                            {/* Type Badge */}
+                            <div className="flex items-center gap-1 px-2 py-1 rounded bg-gray-200 text-gray-700">
+                              {(() => {
+                                const Icon = getActivityIcon(activity.type);
+                                return <Icon className="w-3 h-3" />;
+                              })()}
+                              <span className="capitalize">{activity.type}</span>
+                            </div>
+
+                            {/* Result Badge */}
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded ${getResultColor(activity.result)}`}>
+                              {(() => {
+                                const Icon = getResultIcon(activity.result);
+                                return <Icon className="w-3 h-3" />;
+                              })()}
+                              <span className="capitalize">{activity.result}</span>
+                            </div>
+
+                            {/* Date Badge */}
+                            {activity.date && (
+                              <div className="px-2 py-1 rounded bg-purple-100 text-purple-700 text-xs">
+                                {formatActivityDate(activity.date)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {activity.can_edit && activity.can_delete && (
+                          <div className="flex gap-1">
                             <Button
                               size="sm"
                               variant="secondary"
-                              onClick={() => handleStartEdit(activity)}
+                              onClick={() => setEditingId(activity.id)}
                             >
                               Edit
                             </Button>
@@ -191,39 +278,30 @@ export function ContactDetailPage() {
                             >
                               Delete
                             </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Activity Content */}
+                      {activity.content && (
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">
+                          {activity.content}
+                        </p>
+                      )}
+
+                      {/* Activity Metadata */}
+                      <div className="text-xs text-gray-500">
+                        <span className="font-medium">{activity.author_name}</span>
+                        <span className="mx-1">•</span>
+                        <span>{formatDate(activity.created_at)}</span>
+                        {activity.is_edited && (
+                          <>
+                            <span className="mx-1">•</span>
+                            <span className="italic">edited</span>
                           </>
                         )}
                       </div>
-                    )}
-                  </div>
-
-                  {/* Activity Content */}
-                  {editingId === activity.id ? (
-                    <div>
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[50px]"
-                      />
-                      <div className="mt-1 flex gap-0.5">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveEdit(activity.id)}
-                          disabled={!editContent.trim() || updateMutation.isPending}
-                        >
-                          {updateMutation.isPending ? 'Saving...' : 'Save'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={handleCancelEdit}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{activity.content}</p>
+                    </>
                   )}
                 </div>
               ))
@@ -248,10 +326,10 @@ export function ContactDetailPage() {
           </div>
         </div>
       </Card>
+
       <Button variant="secondary" onClick={() => navigate(-1)} className="mb-2">
         ← Back
       </Button>
-
     </div>
   );
 }

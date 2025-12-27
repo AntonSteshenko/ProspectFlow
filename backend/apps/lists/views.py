@@ -487,16 +487,19 @@ class ActivityViewSet(viewsets.ModelViewSet):
         """
         Create activity with permission check.
 
-        Ensures user owns the contact before allowing comment creation.
+        Ensures user owns the contact before allowing activity creation.
         """
         contact = serializer.validated_data['contact']
         if contact.list.owner != self.request.user:
             raise PermissionDenied("You don't own this contact")
 
-        ActivityService.create_user_comment(
+        ActivityService.create_activity(
             contact=contact,
             user=self.request.user,
-            content=serializer.validated_data['content']
+            activity_type=serializer.validated_data['type'],
+            result=serializer.validated_data['result'],
+            date=serializer.validated_data.get('date'),
+            content=serializer.validated_data.get('content', '')
         )
 
     def perform_update(self, serializer):
@@ -506,10 +509,13 @@ class ActivityViewSet(viewsets.ModelViewSet):
         Uses ActivityService to handle edit history and permissions.
         """
         try:
-            ActivityService.update_user_comment(
+            ActivityService.update_activity(
                 activity=self.get_object(),
-                content=serializer.validated_data['content'],
-                user=self.request.user
+                user=self.request.user,
+                activity_type=serializer.validated_data.get('type'),
+                result=serializer.validated_data.get('result'),
+                date=serializer.validated_data.get('date'),
+                content=serializer.validated_data.get('content')
             )
         except (PermissionError, ValueError) as e:
             raise PermissionDenied(str(e))
@@ -521,7 +527,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         Uses ActivityService to handle soft delete with permissions.
         """
         try:
-            ActivityService.delete_user_comment(activity=instance, user=self.request.user)
+            ActivityService.delete_activity(activity=instance, user=self.request.user)
         except (PermissionError, ValueError) as e:
             raise PermissionDenied(str(e))
 

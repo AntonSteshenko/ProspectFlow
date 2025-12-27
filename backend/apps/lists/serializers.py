@@ -14,14 +14,17 @@ class ContactSerializer(serializers.ModelSerializer):
 
     The 'data' field is JSONB and stores all contact information dynamically.
     No schema changes needed when adding new contact fields.
+    Includes calculated 'status' field based on latest activity.
     """
 
     activities_count = serializers.SerializerMethodField()
+    status = serializers.CharField(read_only=True)
 
     class Meta:
         model = Contact
-        fields = ['id', 'list', 'data', 'created_at', 'updated_at', 'is_deleted', 'activities_count']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'list', 'data', 'status', 'activities_count',
+                  'created_at', 'updated_at', 'is_deleted']
+        read_only_fields = ['id', 'status', 'created_at', 'updated_at']
 
     def get_activities_count(self, obj):
         """Return count of non-deleted activities for this contact."""
@@ -180,8 +183,9 @@ class ActivitySerializer(serializers.ModelSerializer):
         model = Activity
         fields = [
             'id', 'contact', 'author', 'author_email', 'author_name',
-            'type', 'content', 'metadata', 'is_edited', 'is_deleted',
-            'created_at', 'updated_at', 'can_edit', 'can_delete'
+            'type', 'result', 'date', 'content', 'metadata',
+            'is_edited', 'is_deleted', 'created_at', 'updated_at',
+            'can_edit', 'can_delete'
         ]
         read_only_fields = [
             'id', 'author', 'created_at', 'updated_at',
@@ -205,47 +209,67 @@ class ActivitySerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user:
             return False
-        return (obj.type == 'user_comment' and obj.author == request.user and not obj.is_deleted)
+        return (obj.author == request.user and not obj.is_deleted)
 
     def get_can_delete(self, obj):
         """Check if current user can delete this activity."""
         request = self.context.get('request')
         if not request or not request.user:
             return False
-        return (obj.type == 'user_comment' and obj.author == request.user and not obj.is_deleted)
+        return (obj.author == request.user and not obj.is_deleted)
 
 
 class ActivityCreateSerializer(serializers.ModelSerializer):
     """
     Create activities - automatically sets author to current user.
 
-    Only requires contact and content fields.
+    Requires contact, type, result fields. Date and content are optional.
     """
 
     class Meta:
         model = Activity
-        fields = ['contact', 'content']
+        fields = ['contact', 'type', 'result', 'date', 'content']
+
+    def validate_date(self, value):
+        """Allow any date (past or future)."""
+        return value
 
     def create(self, validated_data):
         """Create activity with current user as author."""
         validated_data['author'] = self.context['request'].user
-        validated_data['type'] = 'user_comment'
         return super().create(validated_data)
 
 
 class ActivityUpdateSerializer(serializers.ModelSerializer):
     """
-    Update activities - only content, sets is_edited flag.
+    Update activities - allows updating type, result, date, and content.
 
-    Only allows updating the content field.
+    Stores edit history in metadata and sets is_edited flag.
     """
 
     class Meta:
         model = Activity
-        fields = ['content']
+        fields = ['type', 'result', 'date', 'content']
 
     def update(self, instance, validated_data):
-        """Update activity content and mark as edited."""
+        """Update activity and store edit history in metadata."""
+        from django.utils import timezone
+
+        # Store edit history in metadata
+        instance.metadata.setdefault('edit_history', [])
+        instance.metadata['edit_history'].append({
+            'timestamp': timezone.now().isoformat(),
+            'previous_data': {
+                'type': instance.type,
+                'result': instance.result,
+                'date': instance.date.isoformat() if instance.date else None,
+                'content': instance.content
+            }
+        })
+
+        instance.type = validated_data.get('type', instance.type)
+        instance.result = validated_data.get('result', instance.result)
+        instance.date = validated_data.get('date', instance.date)
         instance.content = validated_data.get('content', instance.content)
         instance.is_edited = True
         instance.save()

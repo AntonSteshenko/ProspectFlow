@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ArrowLeft, Settings, MessageSquare } from 'lucide-react';
 import { listsApi } from '@/api/lists';
+import type { ContactStatus } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,6 +12,17 @@ import { Spinner } from '@/components/ui/Spinner';
 export function ContactsPage() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
+
+  // Helper function to get status badge styling
+  const getStatusBadge = (status: ContactStatus) => {
+    const config = {
+      not_contacted: { label: 'Not Contacted', color: 'bg-gray-100 text-gray-700' },
+      in_working: { label: 'In Working', color: 'bg-blue-100 text-blue-700' },
+      dropped: { label: 'Dropped', color: 'bg-red-100 text-red-700' },
+      converted: { label: 'Converted', color: 'bg-green-100 text-green-700' },
+    };
+    return config[status] || config.not_contacted;
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -279,12 +291,25 @@ export function ContactsPage() {
                     <h3 className="text-lg font-semibold text-gray-900">
                       {String(contact.data?.[titleFieldKey] || 'Contact')}
                     </h3>
-                    {contact.activities_count > 0 && (
-                      <div className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>{contact.activities_count}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* Status Badge */}
+                      {(() => {
+                        const statusInfo = getStatusBadge(contact.status);
+                        return (
+                          <div className={`px-2 py-1 rounded text-xs font-medium ${statusInfo.color}`}>
+                            {statusInfo.label}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Activity Count */}
+                      {contact.activities_count > 0 && (
+                        <div className="flex items-center gap-1 text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                          <MessageSquare className="w-4 h-4" />
+                          <span>{contact.activities_count}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Two columns for other fields */}

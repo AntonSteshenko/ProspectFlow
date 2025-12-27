@@ -109,6 +109,30 @@ class Contact(models.Model):
             GinIndex(fields=['data'], name='contact_data_gin'),
         ]
 
+    @property
+    def status(self) -> str:
+        """
+        Calculate contact status based on latest activity result.
+
+        Returns:
+            - 'not_contacted': No activities
+            - 'in_working': Latest activity result = followup
+            - 'dropped': Latest activity result = no
+            - 'converted': Latest activity result = lead
+        """
+        latest_activity = self.activities.filter(is_deleted=False).order_by('-created_at').first()
+
+        if not latest_activity:
+            return 'not_contacted'
+
+        result_to_status = {
+            'followup': 'in_working',
+            'no': 'dropped',
+            'lead': 'converted',
+        }
+
+        return result_to_status.get(latest_activity.result, 'not_contacted')
+
     def __str__(self):
         # Try to display meaningful info from JSONB data
         first_name = self.data.get('first_name', '')
@@ -125,18 +149,23 @@ class Contact(models.Model):
 
 class Activity(models.Model):
     """
-    Activity/comment record for a contact.
+    Activity/interaction record for a contact.
 
-    Supports both user comments and system-generated events.
+    Tracks contact interactions (calls, emails, visits) with results.
     Uses JSONB metadata for flexible data storage (e.g., edit history).
     Soft delete enabled for audit trail.
     """
 
     TYPE_CHOICES = [
-        ('user_comment', 'User Comment'),
-        ('system_event', 'System Event'),
-        ('status_change', 'Status Change'),
-        ('field_update', 'Field Update'),
+        ('call', 'Call'),
+        ('email', 'Email'),
+        ('visit', 'Visit'),
+    ]
+
+    RESULT_CHOICES = [
+        ('no', 'No'),
+        ('followup', 'Follow-up'),
+        ('lead', 'Lead'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -152,16 +181,29 @@ class Activity(models.Model):
         null=True,
         blank=True,
         related_name='activities',
-        help_text="User who created this activity (null for system events)"
+        help_text="User who created this activity"
     )
     type = models.CharField(
         max_length=20,
         choices=TYPE_CHOICES,
-        default='user_comment',
         db_index=True,
         help_text="Type of activity"
     )
-    content = models.TextField(help_text="Activity content or comment text")
+    result = models.CharField(
+        max_length=20,
+        choices=RESULT_CHOICES,
+        db_index=True,
+        help_text="Result of the activity"
+    )
+    date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Activity date (when it happened or is scheduled)"
+    )
+    content = models.TextField(
+        blank=True,
+        help_text="Activity notes/description"
+    )
     metadata = models.JSONField(
         default=dict,
         blank=True,
@@ -176,7 +218,7 @@ class Activity(models.Model):
     )
     is_edited = models.BooleanField(
         default=False,
-        help_text="True if this comment has been edited"
+        help_text="True if this activity has been edited"
     )
 
     class Meta:
