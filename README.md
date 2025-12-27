@@ -151,7 +151,8 @@ When running `docker compose up`, the following services start:
 ### Step 2: Core Models ✅ COMPLETE
 - [x] ContactList model (with JSONB metadata, status, uploaded_file)
 - [x] Contact model (with JSONB data field and soft delete)
-- [x] ColumnMapping model
+- [x] Activity model (interaction tracking with type, result, date)
+- [x] Contact.status computed property based on latest activity
 - [x] GIN indexes on JSONB fields for performance
 - [x] Migrations created and applied
 
@@ -159,9 +160,9 @@ When running `docker compose up`, the following services start:
 - [x] Authentication (register, login/JWT, profile)
 - [x] ContactList CRUD + file upload/import endpoints
 - [x] Contact CRUD + search functionality with pagination
-- [x] ColumnMapping CRUD
-- [x] Service layer (auth, upload, parser, contact services)
-- [x] Object-level permissions (IsOwner, IsContactListOwner)
+- [x] Activity CRUD with interaction tracking
+- [x] Service layer (auth, upload, parser, contact, activity services)
+- [x] Object-level permissions (IsOwner, IsContactListOwner, IsActivityOwnerOrReadOnly)
 - [x] CSV/XLSX file parsing and preview
 
 ### Step 4: React Frontend ✅ COMPLETE
@@ -182,7 +183,15 @@ When running `docker compose up`, the following services start:
 - [x] Smart type detection for sorting (numeric vs string)
 - [x] UI improvements and TypeScript fixes
 
-### Step 6: Final Integration & Testing (Current)
+### Step 6: Activity Tracking System ✅ COMPLETE
+- [x] Activity model with type (call/email/visit), result (no/followup/lead), date
+- [x] Contact status computation (not_contacted/in_working/dropped/converted)
+- [x] ActivityEditor component with visual selectors
+- [x] Activity timeline on ContactDetailPage
+- [x] Status badges on ContactsPage with color coding
+- [x] Activity edit history tracking
+
+### Step 7: Final Integration & Testing (Current)
 - [ ] End-to-end workflow testing
 - [ ] Bug fixes and refinements
 - [ ] Production deployment preparation
@@ -257,6 +266,18 @@ Following the principles defined in `project/CONCEPT.md`:
 - Per-column visibility: show/hide/show_if_not_null
 - Two-column responsive layout
 
+**Activity Tracking & Status Management**
+- Track interactions with contacts (calls, emails, visits)
+- Record results (no response, follow-up needed, lead converted)
+- Optional date field for scheduling follow-ups
+- Automatic contact status computation:
+  - Not Contacted (gray) - no activities recorded
+  - In Working (blue) - latest activity needs follow-up
+  - Dropped (red) - no response from contact
+  - Converted (green) - contact became a lead
+- Activity timeline with edit history
+- Status badges on contact cards (color-coded)
+
 **Technical Features**
 - PostgreSQL JSONB field-specific queries with ILIKE
 - Smart numeric vs string sorting (2 < 10 instead of "10" < "2")
@@ -274,6 +295,8 @@ Following the principles defined in `project/CONCEPT.md`:
 5. **Configure Display** → Choose title field and column visibility
 6. **Search & Sort** → Select field to search, sort by any column with smart type detection
 7. **Browse** → View and paginate through contacts (50 per page)
+8. **Track Interactions** → Add activities (call/email/visit) with results
+9. **Manage Status** → Contact status updates automatically based on latest activity
 
 ## Troubleshooting
 
