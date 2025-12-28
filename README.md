@@ -6,7 +6,7 @@ Self-hosted contact list processing for prospecting purposes.
 
 **ProspectFlow** is a minimalist, AI-extensible application for processing business contact lists. Built with Django 5 + DRF backend and React 19 frontend, it provides a solid foundation for importing, normalizing, and managing prospect data.
 
-**Status**: MVP Complete - Full-stack application ready for testing
+**Status**: MVP Complete - Full-stack application with advanced filtering and export ready
 
 ## Quick Start
 
@@ -183,14 +183,23 @@ When running `docker compose up`, the following services start:
 - [x] UI improvements and TypeScript fixes
 
 ### Step 6: Activity Tracking System ✅ COMPLETE
-- [x] Activity model with type (call/email/visit), result (no/followup/lead), date
+- [x] Activity model with type (call/email/visit/research), result (no/followup/lead), date
 - [x] Contact status computation (not_contacted/in_working/dropped/converted)
-- [x] ActivityEditor component with visual selectors
+- [x] ActivityEditor component with vertical radio button selectors
 - [x] Activity timeline on ContactDetailPage
 - [x] Status badges on ContactsPage with color coding
 - [x] Activity edit history tracking
 
-### Step 7: Final Integration & Testing (Current)
+### Step 7: Advanced Filtering & Export ✅ COMPLETE
+- [x] Status filtering with multi-select checkboxes
+- [x] CSV export with customizable field selection
+- [x] Export respects current filters (search, status, pipeline, sort)
+- [x] URL parameter persistence for all filters
+- [x] Shareable URLs with applied filters
+- [x] Browser back/forward compatibility
+- [x] Compact 2-row layout for controls
+
+### Step 8: Final Integration & Testing (Current)
 - [ ] End-to-end workflow testing
 - [ ] Bug fixes and refinements
 - [ ] Production deployment preparation
@@ -266,7 +275,7 @@ Following the principles defined in `project/CONCEPT.md`:
 - Two-column responsive layout
 
 **Activity Tracking & Status Management**
-- Track interactions with contacts (calls, emails, visits)
+- Track interactions with contacts (calls, emails, visits, research)
 - Record results (no response, follow-up needed, lead converted)
 - Optional date field for scheduling follow-ups
 - Automatic contact status computation:
@@ -276,6 +285,22 @@ Following the principles defined in `project/CONCEPT.md`:
   - Converted (green) - contact became a lead
 - Activity timeline with edit history
 - Status badges on contact cards (color-coded)
+- Vertical radio button UI for type/result selection
+
+**Advanced Filtering & Export**
+- Multi-select status filter (filter by multiple statuses simultaneously)
+- Pipeline filter (show only contacts in pipeline)
+- Combined filtering (search + status + pipeline work together)
+- CSV export with customizable field selection
+  - Choose which contact fields to export
+  - Optional computed fields: status, activities_count, in_pipeline
+  - Export respects all active filters
+- URL parameter persistence
+  - All filters saved in URL query parameters
+  - Share filtered lists via URL
+  - Browser back/forward preserves filters
+  - Filters persist across navigation and page refresh
+- Contact count display with filter awareness
 
 **Technical Features**
 - PostgreSQL JSONB field-specific queries with ILIKE
@@ -293,9 +318,12 @@ Following the principles defined in `project/CONCEPT.md`:
 4. **Auto-Import** → All columns saved to JSONB automatically
 5. **Configure Display** → Choose title field and column visibility
 6. **Search & Sort** → Select field to search, sort by any column with smart type detection
-7. **Browse** → View and paginate through contacts (50 per page)
-8. **Track Interactions** → Add activities (call/email/visit) with results
-9. **Manage Status** → Contact status updates automatically based on latest activity
+7. **Filter Contacts** → Filter by status (multi-select), pipeline, or combine filters
+8. **Browse** → View and paginate through contacts (50 per page)
+9. **Track Interactions** → Add activities (call/email/visit/research) with results
+10. **Manage Status** → Contact status updates automatically based on latest activity
+11. **Export Data** → Export filtered contacts to CSV with selected fields
+12. **Share Filters** → Share URLs with applied filters for collaboration
 
 ## Troubleshooting
 
