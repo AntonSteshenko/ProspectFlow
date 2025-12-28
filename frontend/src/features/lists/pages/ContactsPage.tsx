@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, ArrowLeft, Settings, MessageSquare } from 'lucide-react';
 import { listsApi } from '@/api/lists';
@@ -8,11 +8,20 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { ExportModal } from '@/features/lists/components/ExportModal';
 
 export function ContactsPage() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Helper to parse array from URL params (e.g., "a,b,c" -> ["a","b","c"])
+  const getArrayParam = (key: string): string[] => {
+    const value = searchParams.get(key);
+    return value ? value.split(',').filter(Boolean) : [];
+  };
 
   // Helper function to get status badge styling
   const getStatusBadge = (status: ContactStatus) => {
@@ -24,13 +33,45 @@ export function ContactsPage() {
     };
     return config[status] || config.not_contacted;
   };
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [searchField, setSearchField] = useState<string>('');
-  const [showPipelineOnly, setShowPipelineOnly] = useState(false);
+  // Initialize filters from URL params (with validation)
+  const initialSearch = searchParams.get('search') || '';
+  const initialSearchField = searchParams.get('searchField') || '';
+  const initialSortField = searchParams.get('sortField') || '';
+  const sortDir = searchParams.get('sortDirection');
+  const initialSortDirection = sortDir === 'desc' ? 'desc' : 'asc';
+  const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const initialPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+  const initialPipelineOnly = searchParams.get('inPipeline') === 'true';
+  const statusParams = getArrayParam('status');
+  const validStatuses: ContactStatus[] = ['not_contacted', 'in_working', 'dropped', 'converted'];
+  const initialStatuses = statusParams.filter(s => validStatuses.includes(s as ContactStatus)) as ContactStatus[];
+
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [sortField, setSortField] = useState<string>(initialSortField);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(initialSortDirection);
+  const [searchField, setSearchField] = useState<string>(initialSearchField);
+  const [showPipelineOnly, setShowPipelineOnly] = useState(initialPipelineOnly);
+  const [selectedStatuses, setSelectedStatuses] = useState<ContactStatus[]>(initialStatuses);
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  // Sync state changes to URL params
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Add only non-default parameters to keep URL clean
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (searchField) params.set('searchField', searchField);
+    if (sortField) params.set('sortField', sortField);
+    if (sortField && sortDirection !== 'asc') params.set('sortDirection', sortDirection);
+    if (currentPage > 1) params.set('page', currentPage.toString());
+    if (showPipelineOnly) params.set('inPipeline', 'true');
+    if (selectedStatuses.length > 0) params.set('status', selectedStatuses.join(','));
+
+    // Update URL without creating new history entry
+    setSearchParams(params, { replace: true });
+  }, [debouncedSearch, searchField, sortField, sortDirection, currentPage, showPipelineOnly, selectedStatuses, setSearchParams]);
 
   // Get list details
   const { data: list } = useQuery({
@@ -56,9 +97,44 @@ export function ContactsPage() {
     },
   });
 
+  // Export mutation
+  const exportMutation = useMutation({
+    mutationFn: async (params: {
+      fields: string[];
+      includeStatus: boolean;
+      includeActivities: boolean;
+      includePipeline: boolean;
+    }) => {
+      const blob = await listsApi.exportContacts(
+        listId!,
+        params.fields,
+        params.includeStatus,
+        params.includeActivities,
+        params.includePipeline,
+        {
+          search: debouncedSearch || undefined,
+          searchField: searchField || undefined,
+          inPipeline: showPipelineOnly || undefined,
+          status: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+          ordering: sortField ? (sortDirection === 'desc' ? `-${sortField}` : sortField) : undefined,
+        }
+      );
+
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contacts_${listId}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    },
+  });
+
   // Get contacts with search, pagination, and ordering
   const { data: contactsResponse, isLoading } = useQuery({
-    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection, searchField, showPipelineOnly],
+    queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection, searchField, showPipelineOnly, selectedStatuses],
     queryFn: () => {
       const ordering = sortField
         ? (sortDirection === 'desc' ? `-${sortField}` : sortField)
@@ -69,7 +145,8 @@ export function ContactsPage() {
         currentPage,
         ordering,
         searchField || undefined,
-        showPipelineOnly || undefined
+        showPipelineOnly || undefined,
+        selectedStatuses.length > 0 ? selectedStatuses : undefined
       );
     },
     enabled: !!listId,
@@ -135,98 +212,180 @@ export function ContactsPage() {
         </div>
       </div>
 
-      {/* Search Controls */}
-      <div className="mb-6">
-        <div className="flex gap-3 items-center">
-          {/* Search Field Selector */}
-          {availableFields.length > 0 && (
-            <select
-              value={searchField}
-              onChange={(e) => handleSearchFieldChange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[200px]"
-            >
-              <option value="">Select field to search...</option>
-              {availableFields.map((field) => (
-                <option key={field} value={field}>
-                  {field}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Search Input - disabled if no field selected */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              disabled={!searchField}
-              placeholder={
-                searchField
-                  ? `Search in ${searchField}...`
-                  : "Select a field first..."
-              }
-              className="pl-10"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Sort Controls */}
-      {availableFields.length > 0 && (
-        <div className="mb-6 flex gap-3 items-center">
-          <span className="text-sm font-medium text-gray-700">Sort by:</span>
-
-          {/* Field Selector */}
+      {/* Row 1: Search, Sort, Pipeline Filter */}
+      <div className="mb-4 flex flex-wrap gap-3 items-center">
+        {/* Search Field Selector */}
+        {availableFields.length > 0 && (
           <select
-            value={sortField}
-            onChange={(e) => {
-              setSortField(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            value={searchField}
+            onChange={(e) => handleSearchFieldChange(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[180px]"
           >
-            <option value="">Default (newest first)</option>
+            <option value="">Select field to search...</option>
             {availableFields.map((field) => (
               <option key={field} value={field}>
                 {field}
               </option>
             ))}
           </select>
+        )}
 
-          {/* Order Selector - only show when field selected */}
-          {sortField && (
+        {/* Search Input - disabled if no field selected */}
+        <div className="relative flex-1 min-w-[250px]">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            disabled={!searchField}
+            placeholder={
+              searchField
+                ? `Search in ${searchField}...`
+                : "Select a field first..."
+            }
+            className="pl-10"
+          />
+        </div>
+
+        {/* Sort Controls */}
+        {availableFields.length > 0 && (
+          <>
+            <span className="text-sm font-medium text-gray-700">Sort:</span>
             <select
-              value={sortDirection}
+              value={sortField}
               onChange={(e) => {
-                setSortDirection(e.target.value as 'asc' | 'desc');
+                setSortField(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[180px]"
             >
-              <option value="asc">A → Z</option>
-              <option value="desc">Z → A</option>
+              <option value="">Default (newest first)</option>
+              {availableFields.map((field) => (
+                <option key={field} value={field}>
+                  {field}
+                </option>
+              ))}
             </select>
-          )}
-        </div>
-      )}
 
-      {/* Pipeline Filter and Bulk Actions */}
-      <div className="mb-6 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
+            {/* Order Selector - only show when field selected */}
+            {sortField && (
+              <select
+                value={sortDirection}
+                onChange={(e) => {
+                  setSortDirection(e.target.value as 'asc' | 'desc');
+                  setCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="asc">A → Z</option>
+                <option value="desc">Z → A</option>
+              </select>
+            )}
+          </>
+        )}
+
+        {/* Pipeline Filter */}
+        <div className="flex items-center gap-2 ml-auto">
           <input
             type="checkbox"
             id="pipeline-filter"
             checked={showPipelineOnly}
             onChange={(e) => {
               setShowPipelineOnly(e.target.checked);
-              setCurrentPage(1); // Reset to first page
+              setCurrentPage(1);
             }}
             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
-          <label htmlFor="pipeline-filter" className="text-sm font-medium text-gray-700">
-            Show Pipeline Only
+          <label htmlFor="pipeline-filter" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            Pipeline Only
+          </label>
+        </div>
+      </div>
+
+      {/* Row 2: Status Filter, Bulk Actions, Count */}
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        {/* Status Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Status:</span>
+
+          {/* Not Contacted */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedStatuses.includes('not_contacted')}
+              onChange={(e) => {
+                setSelectedStatuses(prev =>
+                  e.target.checked
+                    ? [...prev, 'not_contacted']
+                    : prev.filter(s => s !== 'not_contacted')
+                );
+                setCurrentPage(1);
+              }}
+              className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-gray-500"
+            />
+            <span className="text-sm px-2 py-1 rounded bg-gray-100 text-gray-700">
+              Not Contacted
+            </span>
+          </label>
+
+          {/* In Working */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedStatuses.includes('in_working')}
+              onChange={(e) => {
+                setSelectedStatuses(prev =>
+                  e.target.checked
+                    ? [...prev, 'in_working']
+                    : prev.filter(s => s !== 'in_working')
+                );
+                setCurrentPage(1);
+              }}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm px-2 py-1 rounded bg-blue-100 text-blue-700">
+              In Working
+            </span>
+          </label>
+
+          {/* Dropped */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedStatuses.includes('dropped')}
+              onChange={(e) => {
+                setSelectedStatuses(prev =>
+                  e.target.checked
+                    ? [...prev, 'dropped']
+                    : prev.filter(s => s !== 'dropped')
+                );
+                setCurrentPage(1);
+              }}
+              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+            />
+            <span className="text-sm px-2 py-1 rounded bg-red-100 text-red-700">
+              Dropped
+            </span>
+          </label>
+
+          {/* Converted */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedStatuses.includes('converted')}
+              onChange={(e) => {
+                setSelectedStatuses(prev =>
+                  e.target.checked
+                    ? [...prev, 'converted']
+                    : prev.filter(s => s !== 'converted')
+                );
+                setCurrentPage(1);
+              }}
+              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+            />
+            <span className="text-sm px-2 py-1 rounded bg-green-100 text-green-700">
+              Converted
+            </span>
           </label>
         </div>
 
@@ -258,12 +417,21 @@ export function ContactsPage() {
           >
             Clear Pipeline
           </Button>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowExportModal(true)}
+            disabled={!availableFields.length}
+          >
+            Export CSV
+          </Button>
         </div>
 
         {/* Contact count */}
         {contactsResponse?.count !== undefined && (
-          <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded">
-            {debouncedSearch || showPipelineOnly ? (
+          <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded ml-auto">
+            {debouncedSearch || showPipelineOnly || selectedStatuses.length > 0 ? (
               <>
                 <span className="font-semibold">{contactsResponse.count}</span> contacts found
               </>
@@ -275,6 +443,24 @@ export function ContactsPage() {
           </div>
         )}
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportModal
+          availableFields={availableFields}
+          onExport={(fields, status, activities, pipeline) => {
+            exportMutation.mutate({
+              fields,
+              includeStatus: status,
+              includeActivities: activities,
+              includePipeline: pipeline,
+            });
+            setShowExportModal(false);
+          }}
+          onClose={() => setShowExportModal(false)}
+          isLoading={exportMutation.isPending}
+        />
+      )}
 
       {/* Loading state */}
       {isLoading && (
@@ -391,7 +577,9 @@ export function ContactsPage() {
 
                   {/* Clickable area to navigate to detail (excluding toggle button) */}
                   <div
-                    onClick={() => navigate(`/contacts/${contact.id}`)}
+                    onClick={() => navigate(`/contacts/${contact.id}`, {
+                      state: { from: location }
+                    })}
                     className="cursor-pointer pl-10"
                   >
                     {/* Title at the top */}

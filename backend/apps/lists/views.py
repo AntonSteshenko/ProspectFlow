@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.shortcuts import get_object_or_404
-from django.db.models import F, OrderBy
+from django.db.models import F, OrderBy, Subquery, OuterRef, Case, When, Value, CharField
 from django.db.models.expressions import RawSQL
 
 from .models import ContactList, Contact, Activity
@@ -22,7 +22,8 @@ from .serializers import (
     FileUploadSerializer,
     ActivitySerializer,
     ActivityCreateSerializer,
-    ActivityUpdateSerializer
+    ActivityUpdateSerializer,
+    ExportRequestSerializer
 )
 from .permissions import IsOwner, IsContactListOwner, IsActivityOwnerOrReadOnly
 from services.upload_service import UploadService
@@ -263,6 +264,8 @@ class ContactListViewSet(viewsets.ModelViewSet):
             OpenApiParameter('search', str, description='Search query text'),
             OpenApiParameter('search_field', str, description='Specific JSONB field to search in (e.g., email, company). Required for search to work.'),
             OpenApiParameter('ordering', str, description='Field to order by. Prefix with - for descending (e.g., -company, first_name)'),
+            OpenApiParameter('in_pipeline', str, description='Filter by pipeline status (true/false)'),
+            OpenApiParameter('status', str, description='Comma-separated status values to filter by (not_contacted, in_working, dropped, converted)'),
         ],
         tags=["Contacts"]
     ),
@@ -332,6 +335,34 @@ class ContactViewSet(viewsets.ModelViewSet):
         in_pipeline = self.request.query_params.get('in_pipeline')
         if in_pipeline == 'true':
             queryset = queryset.filter(in_pipeline=True)
+
+        # Filter by status if requested
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            # Parse comma-separated status values
+            requested_statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+
+            if requested_statuses:
+                # Subquery to get the latest activity's result for each contact
+                latest_activity = Activity.objects.filter(
+                    contact=OuterRef('pk'),
+                    is_deleted=False
+                ).order_by('-created_at').values('result')[:1]
+
+                # Annotate contacts with computed status based on latest activity result
+                queryset = queryset.annotate(
+                    latest_result=Subquery(latest_activity)
+                ).annotate(
+                    computed_status=Case(
+                        # Map activity results to status values
+                        When(latest_result='followup', then=Value('in_working')),
+                        When(latest_result='no', then=Value('dropped')),
+                        When(latest_result='lead', then=Value('converted')),
+                        # No activities = not_contacted
+                        default=Value('not_contacted'),
+                        output_field=CharField()
+                    )
+                ).filter(computed_status__in=requested_statuses)
 
         # Apply ordering if provided
         ordering = self.request.query_params.get('ordering')
@@ -468,6 +499,71 @@ class ContactViewSet(viewsets.ModelViewSet):
             updated_count = queryset.update(in_pipeline=False)
 
         return Response({'updated_count': updated_count})
+
+    @extend_schema(
+        summary="Export contacts to CSV",
+        description="Export filtered contacts with selected fields to CSV",
+        request=ExportRequestSerializer,
+        responses={200: {'type': 'string', 'format': 'binary'}},
+        tags=["Contacts"]
+    )
+    @action(detail=False, methods=['post'], url_path='export')
+    def export_contacts(self, request, list_pk=None):
+        """Export contacts to CSV with selected fields."""
+        from django.http import HttpResponse, QueryDict
+        from services.export_service import ExportService
+
+        # Validate request data
+        serializer = ExportRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Get export parameters
+        fields = serializer.validated_data.get('fields', [])
+        include_status = serializer.validated_data.get('include_status', False)
+        include_activities = serializer.validated_data.get('include_activities_count', False)
+        include_pipeline = serializer.validated_data.get('include_pipeline', False)
+
+        # Temporarily inject filter parameters from POST body into query_params
+        # so get_queryset() can apply them using existing logic
+        original_query_params = request.query_params
+        modified_query_params = QueryDict(mutable=True)
+        modified_query_params.update(original_query_params)
+
+        # Add filter parameters from request body
+        if serializer.validated_data.get('search'):
+            modified_query_params['search'] = serializer.validated_data['search']
+        if serializer.validated_data.get('search_field'):
+            modified_query_params['search_field'] = serializer.validated_data['search_field']
+        if serializer.validated_data.get('in_pipeline') is not None:
+            modified_query_params['in_pipeline'] = 'true' if serializer.validated_data['in_pipeline'] else 'false'
+        if serializer.validated_data.get('status'):
+            modified_query_params['status'] = serializer.validated_data['status']
+        if serializer.validated_data.get('ordering'):
+            modified_query_params['ordering'] = serializer.validated_data['ordering']
+
+        # Temporarily replace query_params
+        request._request.GET = modified_query_params
+
+        # Apply filters using existing get_queryset logic
+        queryset = self.get_queryset()
+
+        # Restore original query_params
+        request._request.GET = original_query_params
+
+        # Generate CSV
+        csv_content = ExportService.generate_csv(
+            queryset,
+            fields,
+            include_status,
+            include_activities,
+            include_pipeline
+        )
+
+        # Return CSV file
+        list_id = list_pk or self.kwargs.get('list_pk')
+        response = HttpResponse(csv_content, content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="contacts_{list_id}.csv"'
+        return response
 
 
 @extend_schema_view(

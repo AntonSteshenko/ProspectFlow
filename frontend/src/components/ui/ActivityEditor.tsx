@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Phone, Mail, CheckCircle, UserX } from 'lucide-react';
+import { Calendar, Phone, Mail, CheckCircle, UserX, Search } from 'lucide-react';
 import { Button } from './Button';
 import type { Activity, ActivityType, ActivityResult } from '@/types';
 
@@ -33,6 +33,7 @@ export function ActivityEditor({
     { value: 'call', label: 'Call', icon: Phone },
     { value: 'email', label: 'Email', icon: Mail },
     { value: 'visit', label: 'Visit', icon: Calendar },
+    { value: 'research', label: 'Research', icon: Search },
   ];
 
   const results: { value: ActivityResult; label: string; icon: any; color: string }[] = [
@@ -48,24 +49,31 @@ export function ActivityEditor({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Type
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-2">
           {activityTypes.map(({ value, label, icon: Icon }) => (
-            <button
+            <label
               key={value}
-              onClick={() => setActivityType(value)}
-              disabled={isLoading}
               className={`
-                flex items-center justify-center gap-2 px-3 py-2 rounded border-2 transition-colors
+                flex items-center gap-3 px-4 py-3 rounded border-2 cursor-pointer transition-colors
                 ${activityType === value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 hover:border-gray-400'
                 }
                 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
-              <Icon className="w-4 h-4" />
-              <span className="text-sm font-medium">{label}</span>
-            </button>
+              <input
+                type="radio"
+                name="activity-type"
+                value={value}
+                checked={activityType === value}
+                onChange={() => setActivityType(value)}
+                disabled={isLoading}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <Icon className="w-5 h-5 text-gray-600" />
+              <span className="text-sm font-medium text-gray-900">{label}</span>
+            </label>
           ))}
         </div>
       </div>
@@ -75,46 +83,59 @@ export function ActivityEditor({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Result
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-2">
           {results.map(({ value, label, icon: Icon, color }) => (
-            <button
+            <label
               key={value}
-              onClick={() => setResult(value)}
-              disabled={isLoading}
               className={`
-                flex items-center justify-center gap-2 px-3 py-2 rounded border-2 transition-colors
+                flex items-center gap-3 px-4 py-3 rounded border-2 cursor-pointer transition-colors
                 ${result === value
                   ? color === 'green'
-                    ? 'border-green-500 bg-green-50 text-green-700'
+                    ? 'border-green-500 bg-green-50'
                     : color === 'blue'
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-red-500 bg-red-50 text-red-700'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-red-500 bg-red-50'
                   : 'border-gray-300 hover:border-gray-400'
                 }
                 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
-              <Icon className="w-4 h-4" />
-              <span className="text-sm font-medium">{label}</span>
-            </button>
+              <input
+                type="radio"
+                name="activity-result"
+                value={value}
+                checked={result === value}
+                onChange={() => setResult(value)}
+                disabled={isLoading}
+                className={`
+                  w-4 h-4 border-gray-300 focus:ring-2
+                  ${color === 'green' ? 'text-green-600 focus:ring-green-500' : ''}
+                  ${color === 'blue' ? 'text-blue-600 focus:ring-blue-500' : ''}
+                  ${color === 'red' ? 'text-red-600 focus:ring-red-500' : ''}
+                `}
+              />
+              <Icon className="w-5 h-5 text-gray-600" />
+              <span className="text-sm font-medium text-gray-900">{label}</span>
+            </label>
           ))}
         </div>
       </div>
 
       {/* Date Picker */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Date (Optional)
-        </label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          disabled={isLoading}
-          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        />
-      </div>
-
+      {result === 'followup' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Date follow-up (Optional)
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            disabled={isLoading}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          />
+        </div>
+      )}
       {/* Content/Notes */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">

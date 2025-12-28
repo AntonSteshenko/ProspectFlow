@@ -274,3 +274,49 @@ class ActivityUpdateSerializer(serializers.ModelSerializer):
         instance.is_edited = True
         instance.save()
         return instance
+
+
+class ExportRequestSerializer(serializers.Serializer):
+    """Serializer for CSV export request."""
+    fields = serializers.ListField(
+        child=serializers.CharField(),
+        required=True,
+        help_text="List of field names to include in export"
+    )
+    include_status = serializers.BooleanField(
+        default=False,
+        help_text="Include computed contact status"
+    )
+    include_activities_count = serializers.BooleanField(
+        default=False,
+        help_text="Include number of activities"
+    )
+    include_pipeline = serializers.BooleanField(
+        default=False,
+        help_text="Include pipeline flag"
+    )
+    search = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Search query text"
+    )
+    search_field = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Field to search in"
+    )
+    in_pipeline = serializers.BooleanField(
+        required=False,
+        allow_null=True,
+        help_text="Filter by pipeline status"
+    )
+    status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Comma-separated status values"
+    )
+    ordering = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Field to order by"
+    )

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useLocation } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Phone, Mail, CheckCircle, UserX, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Phone, Mail, CheckCircle, UserX, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import apiClient from '@/api/client';
 import { listsApi } from '@/api/lists';
 import type { Contact, Activity, ActivityType, ActivityResult } from '@/types';
@@ -13,7 +13,11 @@ import { ActivityEditor } from '../../../components/ui/ActivityEditor';
 export function ContactDetailPage() {
   const { contactId } = useParams<{ contactId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+
+  // Get previous location from navigation state
+  const fromLocation = (location.state as any)?.from;
 
   // State for adding new activity
   const [isAdding, setIsAdding] = useState(false);
@@ -103,6 +107,16 @@ export function ContactDetailPage() {
     }
   };
 
+  const handleBack = () => {
+    if (fromLocation) {
+      // Navigate back to ContactsPage with filters preserved
+      navigate(fromLocation.pathname + fromLocation.search);
+    } else {
+      // Fallback: navigate to dashboard if no fromLocation
+      navigate('/dashboard');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
@@ -132,6 +146,8 @@ export function ContactDetailPage() {
         return Mail;
       case 'visit':
         return Calendar;
+      case 'research':
+        return Search;
       default:
         return Phone; // fallback
     }
@@ -175,7 +191,7 @@ export function ContactDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h2 className="text-2xl font-bold mb-4">Contact not found</h2>
-        <Button onClick={() => navigate(-1)}>Go Back</Button>
+        <Button onClick={handleBack}>Go Back</Button>
       </div>
     );
   }
@@ -184,7 +200,7 @@ export function ContactDetailPage() {
     <div className="container mx-auto px-2 py-3 max-w-6xl">
       {/* Header */}
       <div className="mb-3">
-        <Button variant="secondary" onClick={() => navigate(-1)} className="mb-2">
+        <Button variant="secondary" onClick={handleBack} className="mb-2">
           ← Back
         </Button>
         <h1 className="text-2xl font-bold">Contact Details</h1>

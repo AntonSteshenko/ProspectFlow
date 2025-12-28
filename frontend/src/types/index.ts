@@ -72,7 +72,7 @@ export interface TokenResponse {
   refresh: string;
 }
 
-export type ActivityType = 'call' | 'email' | 'visit';
+export type ActivityType = 'call' | 'email' | 'visit' | 'research';
 export type ActivityResult = 'no' | 'followup' | 'lead';
 
 export interface Activity {

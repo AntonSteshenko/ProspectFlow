@@ -166,6 +166,7 @@ class Activity(models.Model):
         ('call', 'Call'),
         ('email', 'Email'),
         ('visit', 'Visit'),
+        ('research', 'Research'),
     ]
 
     RESULT_CHOICES = [

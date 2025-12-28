@@ -75,13 +75,14 @@ export const listsApi = {
   /**
    * Get contacts for a list
    */
-  getContacts: async (listId: string, search?: string, page?: number, ordering?: string, searchField?: string, inPipeline?: boolean): Promise<any> => {
+  getContacts: async (listId: string, search?: string, page?: number, ordering?: string, searchField?: string, inPipeline?: boolean, status?: string[]): Promise<any> => {
     const params: any = {};
     if (search) params.search = search;
     if (page) params.page = page;
     if (ordering) params.ordering = ordering;
     if (searchField) params.search_field = searchField;
     if (inPipeline !== undefined) params.in_pipeline = inPipeline;
+    if (status && status.length > 0) params.status = status.join(',');
     const response = await apiClient.get(`/lists/${listId}/contacts/`, { params });
     return response.data;
   },
@@ -164,5 +165,43 @@ export const listsApi = {
    */
   deleteActivity: async (contactId: string, activityId: string): Promise<void> => {
     await apiClient.delete(`/contacts/${contactId}/activities/${activityId}/`);
+  },
+
+  /**
+   * Export contacts to CSV with selected fields
+   */
+  exportContacts: async (
+    listId: string,
+    fields: string[],
+    includeStatus: boolean,
+    includeActivitiesCount: boolean,
+    includePipeline: boolean,
+    filters: {
+      search?: string;
+      searchField?: string;
+      inPipeline?: boolean;
+      status?: string[];
+      ordering?: string;
+    }
+  ): Promise<Blob> => {
+    const data = {
+      fields,
+      include_status: includeStatus,
+      include_activities_count: includeActivitiesCount,
+      include_pipeline: includePipeline,
+      search: filters.search,
+      search_field: filters.searchField,
+      in_pipeline: filters.inPipeline,
+      status: filters.status?.join(','),
+      ordering: filters.ordering,
+    };
+
+    const response = await apiClient.post(
+      `/lists/${listId}/contacts/export/`,
+      data,
+      { responseType: 'blob' }
+    );
+
+    return response.data;
   },
 };
