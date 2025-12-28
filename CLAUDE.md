@@ -28,7 +28,7 @@
 - ✅ **Step 1: Django Backend Setup Complete**
   - ✅ Django 5 project initialized
   - ✅ PostgreSQL + Redis configured in docker-compose.yml
-  - ✅ Apps created: users, lists, processing
+  - ✅ Apps created: users, lists
   - ✅ Celery configured for async tasks
   - ✅ Basic User model with UUID and email auth
   - ✅ Dockerfile and docker-compose.yml ready

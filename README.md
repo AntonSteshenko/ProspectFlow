@@ -74,8 +74,7 @@ prospectflow/
 │   │   └── asgi.py          # ASGI application
 │   ├── apps/
 │   │   ├── users/           # User authentication (basic setup)
-│   │   ├── lists/           # ContactList & Contact models (Step 2)
-│   │   └── processing/      # File upload & parsing (Step 2)
+│   │   └── lists/           # ContactList & Contact models + file upload & parsing
 │   ├── services/            # Business logic layer (Step 2+)
 │   ├── tasks/               # Celery tasks (Step 2+)
 │   ├── manage.py
@@ -143,7 +142,7 @@ When running `docker compose up`, the following services start:
 - [x] Django 5.1 project initialized
 - [x] PostgreSQL 15 + Redis configured
 - [x] Docker Compose setup
-- [x] Three Django apps created: users, lists, processing
+- [x] Two Django apps created: users, lists
 - [x] Celery configured
 - [x] Basic User model with UUID and email auth
 - [x] OpenAPI/Swagger docs enabled (drf-spectacular)
