@@ -13,17 +13,17 @@ RUN apt-get update && apt-get install -y \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
+# Install Python dependencies (adjusted path for root context)
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn==21.2.0
 
-# Copy application
-COPY . .
+# Copy application (adjusted path for root context)
+COPY backend/ .
 
 # Create necessary directories
 RUN mkdir -p /app/media /app/staticfiles
 
-# Run migrations, collect static, start gunicorn
+# Copy entrypoint from docker/ at root level
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

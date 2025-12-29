@@ -79,19 +79,6 @@ export function ListSettingsPage() {
     }));
   };
 
-  const getDisplayLabel = (option: DisplayOption) => {
-    switch (option) {
-      case 'show':
-        return 'Always Show';
-      case 'hide':
-        return 'Hide';
-      case 'show_if_not_null':
-        return 'Show if not empty';
-      default:
-        return option;
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">

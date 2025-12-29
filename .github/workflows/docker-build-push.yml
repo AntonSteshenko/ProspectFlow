@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - name: backend
-            context: ./backend
+            context: .  # Root context for docker/entrypoint.sh access
             dockerfile: ./backend/Dockerfile.prod
             image: prospectflow-backend
           - name: frontend
