@@ -1,0 +1,31 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    build-essential \
+    libpq-dev \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt gunicorn==21.2.0
+
+# Copy application
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/media /app/staticfiles
+
+# Run migrations, collect static, start gunicorn
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["gunicorn", "config.wsgi:application", "-c", "gunicorn_config.py"]

@@ -356,12 +356,36 @@ DJANGO_PORT=8001
 DB_PORT=5433
 ```
 
+## Production Deployment
+
+### Using Private Deployment Repository
+
+For production deployment with Ansible, Traefik, and GitHub Actions:
+
+1. Clone the private deployment repository (if you have access)
+2. The deployment repo includes this repository as a submodule
+3. Follow instructions in `prospecting-deploy/README.md`
+
+### Manual Production Setup
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for manual production deployment instructions.
+
+### Production Requirements
+
+- Gunicorn WSGI server
+- Nginx reverse proxy
+- PostgreSQL 15+
+- Redis 7+
+- SSL/TLS certificates
+- Persistent storage for media and database
+
 ## Documentation
 
 - **CLAUDE.md** - AI development roadmap (root)
 - **project/CONCEPT.md** - Vision, principles, success metrics
 - **project/ARCHITECTURE.md** - Complete architecture documentation
 - **project/REQUIREMENTS.md** - Detailed MVP requirements (if exists)
+- **DEPLOYMENT.md** - Production deployment guide
 
 ## Contributing
 

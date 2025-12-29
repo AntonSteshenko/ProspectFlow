@@ -30,5 +30,8 @@ pydantic-settings==2.7.0
 # Environment variables
 python-dotenv==1.0.1
 
+# Production
+gunicorn==21.2.0
+
 # Development
 django-extensions==3.2.3
