@@ -187,6 +187,10 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# Geocoding Configuration (optional)
+GEOCODING_ENABLED = os.getenv('GEOCODING_ENABLED', 'False') == 'True'
+GEOCODING_SERVICE = os.getenv('GEOCODING_SERVICE', 'nominatim')
+
 # File Upload Configuration
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB

@@ -108,3 +108,39 @@ export interface ActivityUpdate {
   date?: string | null;
   content?: string;
 }
+
+// Geocoding types
+export interface GeocodingTemplate {
+  fields: string[];
+  separator: string;
+}
+
+export interface GeocodingProgress {
+  current: number;
+  total: number;
+  percentage: number;
+}
+
+export interface GeocodingResults {
+  total: number;
+  success: number;
+  failed: number;
+  skipped?: number;
+}
+
+export type GeocodingStatus = 'idle' | 'processing' | 'completed' | 'failed';
+
+export interface GeocodingStatusResponse {
+  geocoding_status: GeocodingStatus;
+  geocoding_progress?: GeocodingProgress;
+  geocoding_results?: GeocodingResults;
+  geocoding_started_at?: string;
+  geocoding_completed_at?: string;
+  geocoding_error?: string;
+}
+
+export interface GeocodingStartResponse {
+  task_id: string;
+  message: string;
+  total_contacts: number;
+}

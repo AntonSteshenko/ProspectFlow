@@ -2,7 +2,7 @@
  * Contact Lists API functions
  */
 import apiClient from './client';
-import type { ContactList, ColumnMapping, PaginatedResponse, Activity, ActivityCreate, ActivityUpdate } from '../types';
+import type { ContactList, ColumnMapping, PaginatedResponse, Activity, ActivityCreate, ActivityUpdate, GeocodingStartResponse, GeocodingStatusResponse } from '../types';
 
 export const listsApi = {
   /**
@@ -202,6 +202,30 @@ export const listsApi = {
       { responseType: 'blob' }
     );
 
+    return response.data;
+  },
+
+  /**
+   * Start geocoding task for contact list
+   */
+  startGeocoding: async (
+    listId: string,
+    options: { force?: boolean } = {}
+  ): Promise<GeocodingStartResponse> => {
+    const response = await apiClient.post<GeocodingStartResponse>(
+      `/lists/${listId}/geocode/`,
+      options
+    );
+    return response.data;
+  },
+
+  /**
+   * Get geocoding progress/status
+   */
+  getGeocodingStatus: async (listId: string): Promise<GeocodingStatusResponse> => {
+    const response = await apiClient.get<GeocodingStatusResponse>(
+      `/lists/${listId}/geocode-status/`
+    );
     return response.data;
   },
 };

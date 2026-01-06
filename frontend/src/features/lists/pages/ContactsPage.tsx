@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, ArrowLeft, Settings, MessageSquare } from 'lucide-react';
+import { Search, ArrowLeft, Settings, MessageSquare, MapPin } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import type { ContactStatus } from '@/types';
 import { Card } from '@/components/ui/Card';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { ExportModal } from '@/features/lists/components/ExportModal';
+import { GeocodingProgressModal } from '@/features/lists/components/GeocodingProgressModal';
 
 export function ContactsPage() {
   const { listId } = useParams<{ listId: string }>();
@@ -55,6 +56,7 @@ export function ContactsPage() {
   const [showPipelineOnly, setShowPipelineOnly] = useState(initialPipelineOnly);
   const [selectedStatuses, setSelectedStatuses] = useState<ContactStatus[]>(initialStatuses);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showGeocodingModal, setShowGeocodingModal] = useState(false);
 
   // Sync state changes to URL params
   useEffect(() => {
@@ -132,6 +134,21 @@ export function ContactsPage() {
     },
   });
 
+  // Geocoding mutation
+  const geocodingMutation = useMutation({
+    mutationFn: async () => {
+      return listsApi.startGeocoding(listId!, { force: false });
+    },
+    onSuccess: () => {
+      setShowGeocodingModal(true);
+      queryClient.invalidateQueries({ queryKey: ['list', listId] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || 'Failed to start geocoding';
+      alert(errorMessage);
+    },
+  });
+
   // Get contacts with search, pagination, and ordering
   const { data: contactsResponse, isLoading } = useQuery({
     queryKey: ['contacts', listId, debouncedSearch, currentPage, sortField, sortDirection, searchField, showPipelineOnly, selectedStatuses],
@@ -167,6 +184,28 @@ export function ContactsPage() {
     }
     return [];
   }, [list, contacts]);
+
+  // Helper to build Google Maps URL from geocoding template
+  const buildGoogleMapsUrl = (contactData: any): string | null => {
+    const template = list?.metadata?.geocoding_template;
+    if (!template || !template.fields || template.fields.length === 0) {
+      return null;
+    }
+
+    // Extract values for each field in template
+    const values = template.fields
+      .map((field: string) => contactData[field])
+      .filter((value: any) => value && String(value).trim())
+      .map((value: any) => String(value).trim().replace(/'/g, ''));  // Remove apostrophes
+
+    if (values.length === 0) {
+      return null;
+    }
+
+    // Join with '+' for Google Maps URL format
+    const addressPart = values.join('+');
+    return `https://www.google.it/maps/place/${addressPart}`;
+  };
 
   // Debounce search and reset page
   const handleSearchChange = (value: string) => {
@@ -426,6 +465,17 @@ export function ContactsPage() {
           >
             Export CSV
           </Button>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => geocodingMutation.mutate()}
+            disabled={geocodingMutation.isPending || !availableFields.length}
+            className="flex items-center gap-2"
+          >
+            <MapPin className="w-4 h-4" />
+            {geocodingMutation.isPending ? 'Starting...' : 'Geocode Contacts'}
+          </Button>
         </div>
 
         {/* Contact count */}
@@ -459,6 +509,18 @@ export function ContactsPage() {
           }}
           onClose={() => setShowExportModal(false)}
           isLoading={exportMutation.isPending}
+        />
+      )}
+
+      {/* Geocoding Progress Modal */}
+      {showGeocodingModal && (
+        <GeocodingProgressModal
+          isOpen={showGeocodingModal}
+          onClose={() => {
+            setShowGeocodingModal(false);
+            queryClient.invalidateQueries({ queryKey: ['contacts', listId] });
+          }}
+          listId={listId!}
         />
       )}
 
@@ -584,9 +646,28 @@ export function ContactsPage() {
                   >
                     {/* Title at the top */}
                     <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {String(contact.data?.[titleFieldKey] || 'Contact')}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {String(contact.data?.[titleFieldKey] || 'Contact')}
+                      </h3>
+
+                      {/* Google Maps Link */}
+                      {(() => {
+                        const googleMapsUrl = buildGoogleMapsUrl(contact.data);
+                        return googleMapsUrl ? (
+                          <a
+                            href={googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-600 hover:text-blue-800 transition-colors"
+                            title="Open in Google Maps"
+                          >
+                            <MapPin className="w-5 h-5" />
+                          </a>
+                        ) : null;
+                      })()}
+                    </div>
                     <div className="flex items-center gap-2">
                       {/* Status Badge */}
                       {(() => {

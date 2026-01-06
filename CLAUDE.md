@@ -17,8 +17,8 @@
 
 ## PROJECT STATUS
 
-**Phase**: MVP Complete - Production-Ready (Dev Mode)
-**Last Updated**: 2025-12-28
+**Phase**: MVP Complete with Geocoding - Production-Ready (Dev Mode)
+**Last Updated**: 2026-01-06
 
 ### Completed
 - ✅ CONCEPT.md created - Vision and architectural principles defined
@@ -132,9 +132,46 @@
   - ✅ Bug fixes and refinements
   - ✅ MVP fully functional and tested
 
+- ✅ **Step 9: Geocoding Feature Complete**
+  - ✅ GeocodingService with Nominatim (OpenStreetMap) integration
+    - ✅ Rate limiting (1 req/sec) for Nominatim compliance
+    - ✅ Free geocoding with no API key required
+    - ✅ 3-level fallback strategy (exact → street → city)
+    - ✅ Italian address prefix cleaning (FRAZIONE, REGIONE, etc.)
+    - ✅ Comprehensive error handling and logging
+  - ✅ Celery async task for batch geocoding
+    - ✅ Progress tracking in ContactList.metadata
+    - ✅ Success/failure statistics
+    - ✅ Skip failed contacts with error logging
+    - ✅ Precision tracking (exact/street/city)
+  - ✅ API endpoints (geocode_contacts, geocode_status)
+    - ✅ Feature flag via GEOCODING_ENABLED env variable
+    - ✅ Template validation
+    - ✅ Progress polling endpoint
+  - ✅ Frontend geocoding configuration
+    - ✅ AddressTemplateBuilder component
+    - ✅ Configurable address template in ListSettingsPage
+    - ✅ Field selector with drag-and-drop ordering
+    - ✅ Customizable field separator
+  - ✅ Frontend geocoding execution
+    - ✅ "Geocode Contacts" button in ContactsPage
+    - ✅ GeocodingProgressModal with real-time progress
+    - ✅ Success/failure statistics display
+    - ✅ Auto-refresh on completion
+  - ✅ GPS coordinates storage in Contact.data JSONB
+    - ✅ latitude, longitude, geocoded_at fields
+    - ✅ No database migrations required
+    - ✅ Error messages in Contact.data
+  - ✅ Google Maps integration
+    - ✅ Dynamic URL generation from geocoding template
+    - ✅ MapPin icon link on each contact card
+    - ✅ Opens in new tab (target="_blank")
+    - ✅ Apostrophe removal for clean URLs
+
 ### Current Phase
-**MVP Complete - Production-Ready (Dev Mode)**
-- All core features implemented and tested
+**MVP Complete with Geocoding - Production-Ready (Dev Mode)**
+- All core features including geocoding implemented
+- Nominatim integration for free geocoding
 - Ready for real-world usage in development environment
 - Future: Production deployment setup (Gunicorn, Nginx, etc.)
 
@@ -161,10 +198,16 @@
    - ~~End-to-end workflow testing~~ ✅
    - ~~Manual testing of all features~~ ✅
    - ~~Bug fixes and refinements~~ ✅
+9. ~~**Geocoding Feature**~~ ✅ COMPLETE
+   - ~~Nominatim (OpenStreetMap) integration~~ ✅
+   - ~~Async batch geocoding with Celery~~ ✅
+   - ~~Configurable address templates~~ ✅
+   - ~~Real-time progress tracking~~ ✅
+   - ~~GPS coordinates in JSONB (no migrations)~~ ✅
 
 ### Next Phase Options
 - **Production Deployment**: Setup Gunicorn, Nginx, production docker-compose
-- **Additional Features**: Add new functionality (data enrichment, integrations, etc.)
+- **Additional Features**: Add new functionality (map visualization, geocoding caching, etc.)
 - **Automated Testing**: Add Pytest, Playwright for regression testing
 
 ## QUICK REFERENCE
@@ -175,9 +218,9 @@
 
 **Architecture Pattern**: Service layer for business logic (`backend/services/`)
 
-**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Field-specific search → Flexible sorting → Activity tracking → Contact status management → Status filtering → CSV export → URL filter persistence
+**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Field-specific search → Flexible sorting → Activity tracking → Contact status management → Status filtering → CSV export → URL filter persistence → Geocoding with Nominatim
 
-**Out of Scope (Phase 2+)**: Traefik, CI/CD, Ansible, data enrichment, integrations
+**Out of Scope (Phase 2+)**: Traefik, CI/CD, Ansible, data enrichment, third-party integrations, map visualization
 
 ## DEVELOPMENT WORKFLOW
 

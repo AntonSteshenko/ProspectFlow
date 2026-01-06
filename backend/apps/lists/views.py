@@ -30,6 +30,8 @@ from services.upload_service import UploadService
 from services.parser_service import ParserService
 from services.contact_service import ContactService
 from services.activity_service import ActivityService
+from services.geocoding_service import GeocodingService
+from tasks.geocoding_tasks import geocode_contact_list
 
 
 @extend_schema_view(
@@ -254,6 +256,163 @@ class ContactListViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    @extend_schema(
+        summary="Start geocoding contacts",
+        description="Trigger asynchronous geocoding task for all contacts using configured address template. Returns task ID for progress tracking.",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'force': {
+                        'type': 'boolean',
+                        'description': 'Re-geocode contacts that already have coordinates (default: false)'
+                    }
+                }
+            }
+        },
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'task_id': {'type': 'string', 'description': 'Celery task ID for progress tracking'},
+                    'message': {'type': 'string', 'description': 'Confirmation message'},
+                    'total_contacts': {'type': 'integer', 'description': 'Number of contacts to geocode'}
+                }
+            },
+            400: {'description': 'Geocoding disabled, template not configured, or already processing'}
+        },
+        tags=["Contact Lists"]
+    )
+    @action(detail=True, methods=['post'], url_path='geocode')
+    def geocode_contacts(self, request, pk=None):
+        """
+        Start geocoding task for contact list.
+
+        Validates geocoding is enabled and template is configured before
+        triggering async Celery task.
+
+        Args:
+            request: HTTP request with optional 'force' parameter
+            pk: ContactList primary key
+
+        Returns:
+            Response with task_id, message, and total_contacts
+
+        Errors:
+            400: If geocoding disabled, template not configured, or already processing
+        """
+        contact_list = self.get_object()
+
+        # Validate feature enabled
+        if not GeocodingService.is_enabled():
+            return Response(
+                {'error': 'Geocoding feature is disabled. Enable GEOCODING_ENABLED in settings.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate template configured
+        template = contact_list.metadata.get('geocoding_template')
+        if not template or not GeocodingService.validate_template(template):
+            return Response(
+                {'error': 'Geocoding template not configured. Please configure address template in list settings.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if already processing
+        if contact_list.metadata.get('geocoding_status') == 'processing':
+            return Response(
+                {'error': 'Geocoding already in progress for this list'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get force parameter
+        force = request.data.get('force', False)
+
+        # Count contacts to geocode
+        contacts_queryset = contact_list.contacts.filter(is_deleted=False)
+        if not force:
+            contacts_queryset = contacts_queryset.exclude(data__has_key='latitude')
+
+        total = contacts_queryset.count()
+
+        if total == 0:
+            return Response(
+                {'message': 'No contacts to geocode. All contacts already have coordinates.', 'total_contacts': 0},
+                status=status.HTTP_200_OK
+            )
+
+        # Start async task
+        task = geocode_contact_list.delay(str(contact_list.id), force=force)
+
+        return Response({
+            'task_id': task.id,
+            'message': f'Geocoding started for {total} contacts',
+            'total_contacts': total
+        })
+
+    @extend_schema(
+        summary="Get geocoding status",
+        description="Check the status and progress of the geocoding task for this contact list.",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'geocoding_status': {
+                        'type': 'string',
+                        'enum': ['idle', 'processing', 'completed', 'failed'],
+                        'description': 'Current geocoding status'
+                    },
+                    'geocoding_progress': {
+                        'type': 'object',
+                        'description': 'Progress information (if processing)',
+                        'properties': {
+                            'current': {'type': 'integer'},
+                            'total': {'type': 'integer'},
+                            'percentage': {'type': 'number'}
+                        }
+                    },
+                    'geocoding_results': {
+                        'type': 'object',
+                        'description': 'Final results (if completed)',
+                        'properties': {
+                            'total': {'type': 'integer'},
+                            'success': {'type': 'integer'},
+                            'failed': {'type': 'integer'},
+                            'skipped': {'type': 'integer'}
+                        }
+                    },
+                    'geocoding_started_at': {'type': 'string', 'format': 'date-time'},
+                    'geocoding_completed_at': {'type': 'string', 'format': 'date-time'}
+                }
+            }
+        },
+        tags=["Contact Lists"]
+    )
+    @action(detail=True, methods=['get'], url_path='geocode-status')
+    def geocode_status(self, request, pk=None):
+        """
+        Get current geocoding status and progress.
+
+        Returns metadata with geocoding_status, progress, and results.
+
+        Args:
+            request: HTTP request
+            pk: ContactList primary key
+
+        Returns:
+            Response with geocoding status, progress, and results from metadata
+        """
+        contact_list = self.get_object()
+
+        return Response({
+            'geocoding_status': contact_list.metadata.get('geocoding_status', 'idle'),
+            'geocoding_progress': contact_list.metadata.get('geocoding_progress'),
+            'geocoding_results': contact_list.metadata.get('geocoding_results'),
+            'geocoding_started_at': contact_list.metadata.get('geocoding_started_at'),
+            'geocoding_completed_at': contact_list.metadata.get('geocoding_completed_at'),
+            'geocoding_error': contact_list.metadata.get('geocoding_error')
+        })
 
 
 @extend_schema_view(

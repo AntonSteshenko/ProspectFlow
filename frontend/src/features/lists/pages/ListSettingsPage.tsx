@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -6,6 +6,7 @@ import { listsApi } from '@/api/lists';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { AddressTemplateBuilder } from '../components/AddressTemplateBuilder';
 
 type DisplayOption = 'show' | 'hide' | 'show_if_not_null';
 
@@ -47,6 +48,22 @@ export function ListSettingsPage() {
     list?.metadata?.title_field || (allColumns[0] || '')
   );
 
+  // Local state for geocoding template
+  const [geocodingTemplate, setGeocodingTemplate] = useState<{
+    fields: string[];
+    separator: string;
+  }>({
+    fields: [],
+    separator: ', ',
+  });
+
+  // Initialize geocoding template when list loads
+  useEffect(() => {
+    if (list?.metadata?.geocoding_template) {
+      setGeocodingTemplate(list.metadata.geocoding_template);
+    }
+  }, [list]);
+
   // Initialize settings when list loads
   if (list && Object.keys(displaySettings).length === 0 && allColumns.length > 0) {
     const initialSettings: Record<string, DisplayOption> = {};
@@ -63,6 +80,7 @@ export function ListSettingsPage() {
         ...list?.metadata,
         display_settings: displaySettings,
         title_field: titleField,
+        geocoding_template: geocodingTemplate,
       };
       return listsApi.updateList(listId!, { metadata });
     },
@@ -184,9 +202,36 @@ export function ListSettingsPage() {
               ))}
             </div>
           )}
+        </div>
+      </Card>
 
-          {/* Actions */}
-          <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+      {/* Geocoding Configuration */}
+      <Card className="mt-6">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Geocoding Configuration</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Configure how addresses are composed from contact fields for geocoding.
+          </p>
+
+          {allColumns.length === 0 ? (
+            <p className="text-gray-500 text-sm">No columns available. Upload contacts first.</p>
+          ) : (
+            <AddressTemplateBuilder
+              availableFields={allColumns}
+              selectedFields={geocodingTemplate.fields}
+              separator={geocodingTemplate.separator}
+              onChange={(fields, separator) => {
+                setGeocodingTemplate({ fields, separator });
+              }}
+            />
+          )}
+        </div>
+      </Card>
+
+      {/* Actions */}
+      <Card className="mt-6">
+        <div className="p-6">
+          <div className="flex gap-3">
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || allColumns.length === 0}
