@@ -243,14 +243,18 @@ export function ListSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Custom Link Templates</h2>
           <p className="text-sm text-gray-600 mb-4">
             Define up to 5 custom link buttons that will appear on contact cards and detail pages.
-            Use {'{field_name}'} placeholders in your URLs.
+            Use {'{field_name}'} placeholders in your URLs. Only "Always show" fields are available for insertion.
           </p>
 
           {allColumns.length === 0 ? (
             <p className="text-gray-500 text-sm">No columns available. Upload contacts first.</p>
+          ) : allColumns.filter(col => displaySettings[col] === 'show').length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              No "Always show" fields configured. Please set some fields to "Always show" in the Display Settings above to use them in link templates.
+            </p>
           ) : (
             <LinkTemplateBuilder
-              availableFields={allColumns}
+              availableFields={allColumns.filter(col => displaySettings[col] === 'show')}
               templates={customLinkTemplates}
               onChange={setCustomLinkTemplates}
             />
