@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
 import { listsApi } from '@/api/lists';
+import type { CustomLinkTemplate } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { AddressTemplateBuilder } from '../components/AddressTemplateBuilder';
+import { LinkTemplateBuilder } from '../components/LinkTemplateBuilder';
 
 type DisplayOption = 'show' | 'hide' | 'show_if_not_null';
 
@@ -57,10 +59,16 @@ export function ListSettingsPage() {
     separator: ', ',
   });
 
+  // Local state for custom link templates
+  const [customLinkTemplates, setCustomLinkTemplates] = useState<CustomLinkTemplate[]>([]);
+
   // Initialize geocoding template when list loads
   useEffect(() => {
     if (list?.metadata?.geocoding_template) {
       setGeocodingTemplate(list.metadata.geocoding_template);
+    }
+    if (list?.metadata?.custom_link_templates) {
+      setCustomLinkTemplates(list.metadata.custom_link_templates);
     }
   }, [list]);
 
@@ -81,6 +89,7 @@ export function ListSettingsPage() {
         display_settings: displaySettings,
         title_field: titleField,
         geocoding_template: geocodingTemplate,
+        custom_link_templates: customLinkTemplates,
       };
       return listsApi.updateList(listId!, { metadata });
     },
@@ -223,6 +232,27 @@ export function ListSettingsPage() {
               onChange={(fields, separator) => {
                 setGeocodingTemplate({ fields, separator });
               }}
+            />
+          )}
+        </div>
+      </Card>
+
+      {/* Custom Link Templates */}
+      <Card className="mt-6">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Custom Link Templates</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Define up to 5 custom link buttons that will appear on contact cards and detail pages.
+            Use {'{field_name}'} placeholders in your URLs.
+          </p>
+
+          {allColumns.length === 0 ? (
+            <p className="text-gray-500 text-sm">No columns available. Upload contacts first.</p>
+          ) : (
+            <LinkTemplateBuilder
+              availableFields={allColumns}
+              templates={customLinkTemplates}
+              onChange={setCustomLinkTemplates}
             />
           )}
         </div>

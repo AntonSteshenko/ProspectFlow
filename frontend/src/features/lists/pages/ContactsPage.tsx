@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, ArrowLeft, Settings, MessageSquare, MapPin } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import type { ContactStatus } from '@/types';
+import { getContactLinks } from '@/utils/linkTemplates';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -666,6 +667,27 @@ export function ContactsPage() {
                             <MapPin className="w-5 h-5" />
                           </a>
                         ) : null;
+                      })()}
+
+                      {/* Custom Link Buttons */}
+                      {(() => {
+                        const customLinks = getContactLinks(
+                          list?.metadata?.custom_link_templates,
+                          contact.data
+                        );
+                        return customLinks.map(({ template, url }) => (
+                          <a
+                            key={template.id}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                            title={`Open in ${template.name}`}
+                          >
+                            {template.name}
+                          </a>
+                        ));
                       })()}
                     </div>
                     <div className="flex items-center gap-2">

@@ -5,6 +5,7 @@ import { Calendar, Phone, Mail, CheckCircle, UserX, ChevronDown, ChevronUp, Sear
 import apiClient from '@/api/client';
 import { listsApi } from '@/api/lists';
 import type { Contact, Activity, ActivityType, ActivityResult } from '@/types';
+import { getContactLinks } from '@/utils/linkTemplates';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -43,6 +44,13 @@ export function ContactDetailPage() {
     queryKey: ['activities', contactId],
     queryFn: () => listsApi.getActivities(contactId!),
     enabled: !!contactId,
+  });
+
+  // Fetch contact's list (for custom link templates)
+  const { data: contactList } = useQuery({
+    queryKey: ['list', contact?.list],
+    queryFn: () => listsApi.getList(contact!.list),
+    enabled: !!contact?.list,
   });
 
   // Filter only new-format activities (with result field)
@@ -203,7 +211,31 @@ export function ContactDetailPage() {
         <Button variant="secondary" onClick={handleBack} className="mb-2">
           ← Back
         </Button>
-        <h1 className="text-2xl font-bold">Contact Details</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">
+            {contact.data?.[contactList?.metadata?.title_field] || 'Contact Details'}
+          </h1>
+          <div className="flex items-center gap-2">
+            {/* Custom Link Buttons */}
+            {(() => {
+              const customLinks = getContactLinks(
+                contactList?.metadata?.custom_link_templates,
+                contact.data
+              );
+              return customLinks.map(({ template, url }) => (
+                <Button
+                  key={template.id}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                  title={`Open in ${template.name}`}
+                >
+                  {template.name}
+                </Button>
+              ));
+            })()}
+          </div>
+        </div>
       </div>
 
       {/* Activities Timeline */}

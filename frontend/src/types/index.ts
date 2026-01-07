@@ -144,3 +144,11 @@ export interface GeocodingStartResponse {
   message: string;
   total_contacts: number;
 }
+
+// Custom Link Templates
+export interface CustomLinkTemplate {
+  id: string;
+  name: string;
+  url_template: string;
+  enabled: boolean;
+}

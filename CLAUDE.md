@@ -168,6 +168,30 @@
     - ✅ Opens in new tab (target="_blank")
     - ✅ Apostrophe removal for clean URLs
 
+- ✅ **Step 10: Custom Link Templates Complete**
+  - ✅ Frontend-only implementation (no backend changes)
+  - ✅ Configuration UI in ListSettingsPage
+    - ✅ LinkTemplateBuilder component
+    - ✅ Up to 5 templates per list
+    - ✅ URL templates with {field_name} placeholders
+    - ✅ Enable/disable toggle per template
+    - ✅ Insert field buttons for easy placeholder creation
+    - ✅ Live preview of URL with sample data
+  - ✅ Template storage in ContactList.metadata JSONB
+  - ✅ URL building utility with validation
+    - ✅ buildCustomLinkUrl function
+    - ✅ Placeholder replacement with contact.data values
+    - ✅ URL encoding for special characters
+    - ✅ Returns null if required fields missing
+  - ✅ Link buttons on ContactsPage cards
+    - ✅ Text-only buttons next to contact title
+    - ✅ Respects enable/disable status
+    - ✅ Opens in new tab with stopPropagation
+  - ✅ Link buttons on ContactDetailPage header
+    - ✅ Button components in page header
+    - ✅ Dynamic title from title_field
+    - ✅ Query to fetch list metadata
+
 ### Current Phase
 **MVP Complete with Geocoding - Production-Ready (Dev Mode)**
 - All core features including geocoding implemented
@@ -204,6 +228,12 @@
    - ~~Configurable address templates~~ ✅
    - ~~Real-time progress tracking~~ ✅
    - ~~GPS coordinates in JSONB (no migrations)~~ ✅
+10. ~~**Custom Link Templates**~~ ✅ COMPLETE
+   - ~~Frontend-only implementation (no backend changes)~~ ✅
+   - ~~LinkTemplateBuilder component~~ ✅
+   - ~~URL templates with {field_name} placeholders~~ ✅
+   - ~~Up to 5 templates per list~~ ✅
+   - ~~Link buttons on contacts and detail pages~~ ✅
 
 ### Next Phase Options
 - **Production Deployment**: Setup Gunicorn, Nginx, production docker-compose
@@ -218,7 +248,7 @@
 
 **Architecture Pattern**: Service layer for business logic (`backend/services/`)
 
-**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Field-specific search → Flexible sorting → Activity tracking → Contact status management → Status filtering → CSV export → URL filter persistence → Geocoding with Nominatim
+**MVP Scope**: Upload CSV/XLSX → Auto-import all fields to JSONB → Configure display → Field-specific search → Flexible sorting → Activity tracking → Contact status management → Status filtering → CSV export → URL filter persistence → Geocoding with Nominatim → Custom link templates with {field_name} placeholders
 
 **Out of Scope (Phase 2+)**: Traefik, CI/CD, Ansible, data enrichment, third-party integrations, map visualization
 
