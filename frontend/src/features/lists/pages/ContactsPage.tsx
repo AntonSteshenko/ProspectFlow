@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, ArrowLeft, Settings, MessageSquare, MapPin } from 'lucide-react';
+import { Search, ArrowLeft, Settings, MessageSquare, MapPinned } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import type { ContactStatus } from '@/types';
 import { getContactLinks } from '@/utils/linkTemplates';
@@ -185,28 +185,6 @@ export function ContactsPage() {
     }
     return [];
   }, [list, contacts]);
-
-  // Helper to build Google Maps URL from geocoding template
-  const buildGoogleMapsUrl = (contactData: any): string | null => {
-    const template = list?.metadata?.geocoding_template;
-    if (!template || !template.fields || template.fields.length === 0) {
-      return null;
-    }
-
-    // Extract values for each field in template
-    const values = template.fields
-      .map((field: string) => contactData[field])
-      .filter((value: any) => value && String(value).trim())
-      .map((value: any) => String(value).trim().replace(/'/g, ''));  // Remove apostrophes
-
-    if (values.length === 0) {
-      return null;
-    }
-
-    // Join with '+' for Google Maps URL format
-    const addressPart = values.join('+');
-    return `https://www.google.it/maps/place/${addressPart}`;
-  };
 
   // Debounce search and reset page
   const handleSearchChange = (value: string) => {
@@ -474,7 +452,7 @@ export function ContactsPage() {
             disabled={geocodingMutation.isPending || !availableFields.length}
             className="flex items-center gap-2"
           >
-            <MapPin className="w-4 h-4" />
+            <MapPinned className="w-4 h-4" />
             {geocodingMutation.isPending ? 'Starting...' : 'Geocode Contacts'}
           </Button>
         </div>
@@ -651,23 +629,6 @@ export function ContactsPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         {String(contact.data?.[titleFieldKey] || 'Contact')}
                       </h3>
-
-                      {/* Google Maps Link */}
-                      {(() => {
-                        const googleMapsUrl = buildGoogleMapsUrl(contact.data);
-                        return googleMapsUrl ? (
-                          <a
-                            href={googleMapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-blue-600 hover:text-blue-800 transition-colors"
-                            title="Open in Google Maps"
-                          >
-                            <MapPin className="w-5 h-5" />
-                          </a>
-                        ) : null;
-                      })()}
 
                       {/* Custom Link Buttons */}
                       {(() => {

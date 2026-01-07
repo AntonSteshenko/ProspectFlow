@@ -7,7 +7,6 @@ import type { CustomLinkTemplate } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { AddressTemplateBuilder } from '../components/AddressTemplateBuilder';
 import { LinkTemplateBuilder } from '../components/LinkTemplateBuilder';
 
 type DisplayOption = 'show' | 'hide' | 'show_if_not_null';
@@ -50,23 +49,11 @@ export function ListSettingsPage() {
     list?.metadata?.title_field || (allColumns[0] || '')
   );
 
-  // Local state for geocoding template
-  const [geocodingTemplate, setGeocodingTemplate] = useState<{
-    fields: string[];
-    separator: string;
-  }>({
-    fields: [],
-    separator: ', ',
-  });
-
   // Local state for custom link templates
   const [customLinkTemplates, setCustomLinkTemplates] = useState<CustomLinkTemplate[]>([]);
 
-  // Initialize geocoding template when list loads
+  // Initialize custom link templates when list loads
   useEffect(() => {
-    if (list?.metadata?.geocoding_template) {
-      setGeocodingTemplate(list.metadata.geocoding_template);
-    }
     if (list?.metadata?.custom_link_templates) {
       setCustomLinkTemplates(list.metadata.custom_link_templates);
     }
@@ -88,7 +75,6 @@ export function ListSettingsPage() {
         ...list?.metadata,
         display_settings: displaySettings,
         title_field: titleField,
-        geocoding_template: geocodingTemplate,
         custom_link_templates: customLinkTemplates,
       };
       return listsApi.updateList(listId!, { metadata });
@@ -210,29 +196,6 @@ export function ListSettingsPage() {
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Geocoding Configuration */}
-      <Card className="mt-6">
-        <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Geocoding Configuration</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Configure how addresses are composed from contact fields for geocoding.
-          </p>
-
-          {allColumns.length === 0 ? (
-            <p className="text-gray-500 text-sm">No columns available. Upload contacts first.</p>
-          ) : (
-            <AddressTemplateBuilder
-              availableFields={allColumns}
-              selectedFields={geocodingTemplate.fields}
-              separator={geocodingTemplate.separator}
-              onChange={(fields, separator) => {
-                setGeocodingTemplate({ fields, separator });
-              }}
-            />
           )}
         </div>
       </Card>
