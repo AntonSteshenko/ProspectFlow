@@ -68,3 +68,44 @@ jobs:
 
       - name: Image digest
         run: echo "Image pushed - ${{ steps.meta.outputs.tags }}"
+
+  # Job separato per notifica Telegram (eseguito dopo tutti i build)
+  notify:
+    needs: docker
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - name: Send success message to Telegram
+        if: needs.docker.result == 'success'
+        uses: Lukasss93/telegram-action@v2
+        with:
+          status: ${{ needs.docker.result }}
+          message: |
+            ✅ Build completato con successo!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Autore: ${{ github.actor }}
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+
+      - name: Send failure message to Telegram
+        if: needs.docker.result != 'success'
+        uses: Lukasss93/telegram-action@v2
+        with:
+          status: ${{ needs.docker.result }}
+          message: |
+            ❌ Build fallito!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Autore: ${{ github.actor }}
+            Stato: ${{ needs.docker.result }}
+
+            Controlla i log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}

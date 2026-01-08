@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Save } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import type { CustomLinkTemplate } from '@/types';
+import { sortFieldsByColumnOrder } from '@/utils/fieldOrdering';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -33,11 +34,16 @@ export function ListSettingsPage() {
   const contacts = Array.isArray(contactsResponse) ? contactsResponse : (contactsResponse?.results || []);
 
   // Get all unique column names
-  const allColumns: string[] = Array.from(
+  const rawColumns: string[] = Array.from(
     new Set<string>(
       contacts.flatMap((contact: any) => Object.keys(contact.data || {}))
     )
   ).filter((key) => !/^\d{4}$/.test(key)); // Skip year fields
+
+  const allColumns = sortFieldsByColumnOrder(
+    rawColumns,
+    list?.metadata?.column_order
+  );
 
   // Local state for display settings
   const [displaySettings, setDisplaySettings] = useState<Record<string, DisplayOption>>(

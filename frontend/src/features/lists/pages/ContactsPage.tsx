@@ -5,6 +5,7 @@ import { Search, ArrowLeft, Settings, MessageSquare, MapPinned } from 'lucide-re
 import { listsApi } from '@/api/lists';
 import type { ContactStatus } from '@/types';
 import { getContactLinks } from '@/utils/linkTemplates';
+import { sortFieldsByColumnOrder } from '@/utils/fieldOrdering';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -175,15 +176,17 @@ export function ContactsPage() {
 
   // Get available fields for sorting dropdown - only "Always show" fields
   const availableFields = useMemo(() => {
+    let fields: string[] = [];
+
     if (list?.metadata?.display_settings) {
-      return Object.keys(list.metadata.display_settings).filter(
+      fields = Object.keys(list.metadata.display_settings).filter(
         (key) => list.metadata.display_settings[key] === 'show'
       );
+    } else if (contacts.length > 0) {
+      fields = Object.keys(contacts[0].data || {}).filter(key => !/^\d{4}$/.test(key));
     }
-    if (contacts.length > 0) {
-      return Object.keys(contacts[0].data || {}).filter(key => !/^\d{4}$/.test(key));
-    }
-    return [];
+
+    return sortFieldsByColumnOrder(fields, list?.metadata?.column_order);
   }, [list, contacts]);
 
   // Debounce search and reset page
@@ -561,9 +564,14 @@ export function ContactsPage() {
               const titleFieldKey = list?.metadata?.title_field || Object.keys(contact.data || {})[0];
 
               // Get all fields in the order they appear in settings (or data)
-              const orderedKeys = Object.keys(displaySettings).length > 0
+              const rawKeys = Object.keys(displaySettings).length > 0
                 ? Object.keys(displaySettings)
                 : Object.keys(contact.data || {});
+
+              const orderedKeys = sortFieldsByColumnOrder(
+                rawKeys,
+                list?.metadata?.column_order
+              );
 
               // Filter fields to display (excluding title field)
               const fieldsToDisplay = orderedKeys

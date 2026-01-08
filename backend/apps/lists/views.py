@@ -3,6 +3,9 @@ Views for contact lists, contacts, column mappings, and activities.
 
 Provides REST API endpoints for managing contact data.
 """
+import csv
+import io
+import openpyxl
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -32,6 +35,40 @@ from services.contact_service import ContactService
 from services.activity_service import ActivityService
 from services.geocoding_service import GeocodingService
 from tasks.geocoding_tasks import geocode_contact_list
+
+
+def _extract_columns_from_file(file) -> list[str]:
+    """
+    Extract column names from CSV or XLSX file header.
+
+    Args:
+        file: Uploaded file object
+
+    Returns:
+        list: Ordered list of column names from the file header
+
+    Raises:
+        ValueError: If file format is unsupported
+    """
+    ext = file.name.lower().split('.')[-1]
+    file.seek(0)
+
+    try:
+        if ext == 'csv':
+            content = file.read().decode('utf-8-sig')
+            reader = csv.DictReader(io.StringIO(content))
+            return list(reader.fieldnames or [])
+        elif ext in ['xlsx', 'xls']:
+            workbook = openpyxl.load_workbook(file, read_only=True)
+            sheet = workbook.active
+            columns = [str(cell.value) if cell.value is not None else ''
+                      for cell in sheet[1]]
+            workbook.close()
+            return columns
+        else:
+            return []
+    finally:
+        file.seek(0)
 
 
 @extend_schema_view(
@@ -115,12 +152,16 @@ class ContactListViewSet(viewsets.ModelViewSet):
             # Get preview data
             preview_data = UploadService.parse_preview(file)
 
+            # Extract column order from file header
+            columns = _extract_columns_from_file(file)
+
             # Save the uploaded file
             contact_list.uploaded_file = file
             contact_list.metadata = contact_list.metadata or {}
             contact_list.metadata['file_name'] = file.name
             contact_list.metadata['file_size'] = file.size
             contact_list.metadata['total_rows'] = preview_data['total_rows']
+            contact_list.metadata['column_order'] = columns
             contact_list.save()
 
             return Response({

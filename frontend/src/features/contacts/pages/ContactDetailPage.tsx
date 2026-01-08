@@ -6,6 +6,7 @@ import apiClient from '@/api/client';
 import { listsApi } from '@/api/lists';
 import type { Contact, Activity, ActivityType, ActivityResult } from '@/types';
 import { getContactLinks } from '@/utils/linkTemplates';
+import { sortFieldsByColumnOrder } from '@/utils/fieldOrdering';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -384,25 +385,41 @@ export function ContactDetailPage() {
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-            {Object.entries(contact.data)
-              .filter(([key, value]) => {
-                // Skip internal fields (starting with _)
-                if (key.startsWith('_')) return false;
-                // When collapsed, only show fields with values
-                if (!isContactInfoExpanded) {
-                  return value !== null && value !== undefined && value !== '' && value !== 0;
-                }
-                // When expanded, show all fields
-                return true;
-              })
-              .map(([key, value]) => (
+            {(() => {
+              // Filter entries first
+              const filteredEntries = Object.entries(contact.data)
+                .filter(([key, value]) => {
+                  // Skip internal fields (starting with _)
+                  if (key.startsWith('_')) return false;
+                  // When collapsed, only show fields with values
+                  if (!isContactInfoExpanded) {
+                    return value !== null && value !== undefined && value !== '' && value !== 0;
+                  }
+                  // When expanded, show all fields
+                  return true;
+                });
+
+              // Sort entries based on column_order
+              const columnOrder = contactList?.metadata?.column_order;
+              const sortedKeys = sortFieldsByColumnOrder(
+                filteredEntries.map(([key]) => key),
+                columnOrder
+              );
+
+              // Rebuild entries in correct order
+              const orderedEntries = sortedKeys
+                .map(key => filteredEntries.find(([k]) => k === key))
+                .filter((entry): entry is [string, any] => entry !== undefined);
+
+              return orderedEntries.map(([key, value]) => (
                 <div key={key} className="flex gap-2">
                   <dt className="text-sm font-medium text-gray-500 capitalize min-w-[120px]">
                     {key.replace(/_/g, ' ')}:
                   </dt>
                   <dd className="text-sm text-gray-900">{value || '-'}</dd>
                 </div>
-              ))}
+              ));
+            })()}
           </div>
         </div>
       </Card>

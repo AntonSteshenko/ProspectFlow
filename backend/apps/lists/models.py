@@ -141,6 +141,10 @@ class Contact(models.Model):
 
     def __str__(self):
         # Try to display meaningful info from JSONB data
+        # Handle corrupted data (if data is not a dict)
+        if not isinstance(self.data, dict):
+            return f"Contact {str(self.id)[:8]} (corrupted data)"
+
         first_name = self.data.get('first_name', '')
         last_name = self.data.get('last_name', '')
         email = self.data.get('email', '')
