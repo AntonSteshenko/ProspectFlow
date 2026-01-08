@@ -71,15 +71,15 @@ jobs:
 
   # Job separato per notifica Telegram (eseguito dopo tutti i build)
   notify:
-    needs: docker
+    needs: build-and-push
     runs-on: ubuntu-22.04
     if: always()
     steps:
       - name: Send success message to Telegram
-        if: needs.docker.result == 'success'
+        if: needs.build-and-push.result == 'success'
         uses: Lukasss93/telegram-action@v2
         with:
-          status: ${{ needs.docker.result }}
+          status: ${{ needs.build-and-push.result }}
           message: |
             ✅ Build completato con successo!
 
@@ -92,10 +92,10 @@ jobs:
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
 
       - name: Send failure message to Telegram
-        if: needs.docker.result != 'success'
+        if: needs.build-and-push.result != 'success'
         uses: Lukasss93/telegram-action@v2
         with:
-          status: ${{ needs.docker.result }}
+          status: ${{ needs.build-and-push.result }}
           message: |
             ❌ Build fallito!
 
@@ -103,7 +103,7 @@ jobs:
             Branch: ${{ github.ref_name }}
             Commit: ${{ github.sha }}
             Autore: ${{ github.actor }}
-            Stato: ${{ needs.docker.result }}
+            Stato: ${{ needs.build-and-push.result }}
 
             Controlla i log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         env:
