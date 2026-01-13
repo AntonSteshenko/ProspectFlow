@@ -619,14 +619,18 @@ class ContactViewSet(viewsets.ModelViewSet):
         """
         Toggle contact in_pipeline flag.
 
-        Returns updated contact with new in_pipeline value.
+        Returns minimal response for performance (optimistic updates on frontend).
         """
         contact = self.get_object()
         contact.in_pipeline = not contact.in_pipeline
-        contact.save()
+        # Only update specific fields for better performance
+        contact.save(update_fields=['in_pipeline', 'updated_at'])
 
-        serializer = self.get_serializer(contact)
-        return Response(serializer.data)
+        # Return minimal data (not full serializer) - reduces payload from ~2-10KB to ~100 bytes
+        return Response({
+            'id': str(contact.id),
+            'in_pipeline': contact.in_pipeline,
+        })
 
     @extend_schema(
         summary="Bulk pipeline operations",

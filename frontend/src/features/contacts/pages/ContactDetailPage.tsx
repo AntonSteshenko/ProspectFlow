@@ -10,6 +10,7 @@ import { sortFieldsByColumnOrder } from '@/utils/fieldOrdering';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { PipelineToggle } from '@/components/ui/PipelineToggle';
 import { ActivityEditor } from '../../../components/ui/ActivityEditor';
 
 export function ContactDetailPage() {
@@ -216,7 +217,15 @@ export function ContactDetailPage() {
           <h1 className="text-2xl font-bold">
             {contact.data?.[contactList?.metadata?.title_field] || 'Contact Details'}
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Pipeline Toggle */}
+            {contact && (
+              <PipelineToggle
+                contactId={contact.id}
+                inPipeline={contact.in_pipeline}
+              />
+            )}
+
             {/* Custom Link Buttons */}
             {(() => {
               const customLinks = getContactLinks(

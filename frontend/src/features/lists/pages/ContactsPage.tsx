@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { PipelineToggle } from '@/components/ui/PipelineToggle';
 import { ExportModal } from '@/features/lists/components/ExportModal';
 import { GeocodingProgressModal } from '@/features/lists/components/GeocodingProgressModal';
 
@@ -82,14 +83,6 @@ export function ContactsPage() {
     queryKey: ['list', listId],
     queryFn: () => listsApi.getList(listId!),
     enabled: !!listId,
-  });
-
-  // Toggle pipeline mutation
-  const togglePipelineMutation = useMutation({
-    mutationFn: (contactId: string) => listsApi.togglePipeline(contactId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-    },
   });
 
   // Bulk pipeline mutation
@@ -605,24 +598,22 @@ export function ContactsPage() {
                   className="hover:shadow-md transition-shadow relative"
                 >
                   {/* Pipeline Toggle Button - top left */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click
-                      togglePipelineMutation.mutate(contact.id);
-                    }}
-                    className={`absolute top-3 left-3 w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                      contact.in_pipeline
-                        ? 'bg-blue-500 border-blue-500'
-                        : 'bg-white border-gray-300 hover:border-blue-400'
-                    }`}
-                    title={contact.in_pipeline ? 'Remove from pipeline' : 'Add to pipeline'}
-                  >
-                    {contact.in_pipeline && (
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                      </svg>
-                    )}
-                  </button>
+                  <div className="absolute top-3 left-3">
+                    <PipelineToggle
+                      contactId={contact.id}
+                      inPipeline={contact.in_pipeline}
+                      listContext={{
+                        listId: listId!,
+                        search: debouncedSearch,
+                        page: currentPage,
+                        sortField,
+                        sortDirection,
+                        searchField,
+                        showPipelineOnly,
+                        selectedStatuses,
+                      }}
+                    />
+                  </div>
 
                   {/* Clickable area to navigate to detail (excluding toggle button) */}
                   <div
