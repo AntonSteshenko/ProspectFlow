@@ -85,7 +85,7 @@ export function PipelineToggle({ contactId, inPipeline, listContext, onToggle }:
     },
 
     // Error handling - rollback on failure
-    onError: (err, contactId, context: any) => {
+    onError: (err, _contactId, context: any) => {
       // Restore previous state
       if (context?.previousData && context?.queryKey) {
         queryClient.setQueryData(context.queryKey, context.previousData);
