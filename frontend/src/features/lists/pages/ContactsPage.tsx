@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, ArrowLeft, Settings, MessageSquare, MapPinned } from 'lucide-react';
+import { Search, ArrowLeft, Settings, MessageSquare, MapPinned, X } from 'lucide-react';
 import { listsApi } from '@/api/lists';
 import type { ContactStatus } from '@/types';
 import { getContactLinks } from '@/utils/linkTemplates';
@@ -257,8 +257,23 @@ export function ContactsPage() {
                 ? `Search in ${searchField}...`
                 : "Select a field first..."
             }
-            className="pl-10"
+            className="pl-10 pr-10"
           />
+          {/* Clear button - shown only when there's search text */}
+          {searchQuery && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                setSearchQuery('');
+                setDebouncedSearch('');
+                setCurrentPage(1);
+              }}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Clear search"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Sort Controls */}
