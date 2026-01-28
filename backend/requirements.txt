@@ -35,6 +35,7 @@ python-dotenv==1.0.1
 
 # Production
 gunicorn==21.2.0
+whitenoise==6.8.2
 
 # Development
 django-extensions==3.2.3
