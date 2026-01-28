@@ -34,7 +34,7 @@ pydantic-settings==2.7.0
 python-dotenv==1.0.1
 
 # Production
-gunicorn==21.2.0
+gunicorn==22.0.0
 whitenoise==6.8.2
 
 # Development
